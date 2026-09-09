@@ -27,12 +27,34 @@ function remember(key: string, value: string): void {
   }
 }
 
+interface PairPayload {
+  mode?: 'direct' | 'relay'
+  url?: string
+  token?: string
+  account?: string
+  device?: string
+}
+
+/** Le `#pair=<base64url json>` da URL uma unica vez, antes de qualquer redirecionamento do roteador. */
+function pairFromHash(): PairPayload | null {
+  const match = /#pair=([A-Za-z0-9_-]+)/.exec(window.location.hash)
+  if (!match) return null
+  try {
+    const payload = JSON.parse(atob(match[1]!.replace(/-/g, '+').replace(/_/g, '/'))) as PairPayload
+    history.replaceState(null, '', window.location.pathname)
+    return payload
+  } catch {
+    return null
+  }
+}
+
 export const useConnection = defineStore('connection', () => {
-  const mode = ref<'direct' | 'relay'>(stored(keys.mode, 'direct') === 'relay' ? 'relay' : 'direct')
-  const url = ref(stored(keys.url, 'ws://127.0.0.1:47311/ws'))
-  const token = ref(stored(keys.token, ''))
-  const accountToken = ref(stored(keys.account, ''))
-  const deviceId = ref(stored(keys.device, ''))
+  const pair = pairFromHash()
+  const mode = ref<'direct' | 'relay'>((pair?.mode ?? stored(keys.mode, 'direct')) === 'relay' ? 'relay' : 'direct')
+  const url = ref(pair?.url ?? stored(keys.url, 'ws://127.0.0.1:47311/ws'))
+  const token = ref(pair?.token ?? stored(keys.token, ''))
+  const accountToken = ref(pair?.account ?? stored(keys.account, ''))
+  const deviceId = ref(pair?.device ?? stored(keys.device, ''))
   const devices = ref<RelayDevice[]>([])
   const status = ref<Status>('offline')
   const detail = ref('')

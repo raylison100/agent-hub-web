@@ -23,30 +23,6 @@ async function togglePush(): Promise<void> {
   }
 }
 
-interface PairPayload {
-  mode?: 'direct' | 'relay'
-  url?: string
-  token?: string
-  account?: string
-  device?: string
-}
-
-onMounted(() => {
-  const match = /#pair=([A-Za-z0-9_-]+)/.exec(window.location.hash)
-  if (!match) return
-  try {
-    const payload = JSON.parse(atob(match[1]!.replace(/-/g, '+').replace(/_/g, '/'))) as PairPayload
-    if (payload.mode) connection.mode = payload.mode
-    if (payload.url) connection.url = payload.url
-    if (payload.token) connection.token = payload.token
-    if (payload.account) connection.accountToken = payload.account
-    if (payload.device) connection.deviceId = payload.device
-    history.replaceState(null, '', window.location.pathname)
-    void connect()
-  } catch {
-    error.value = 'link de emparelhamento invalido'
-  }
-})
 
 async function connect(): Promise<void> {
   busy.value = true

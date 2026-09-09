@@ -1,4 +1,5 @@
 import type { ClientFrame, ClientToRelay, RelayDevice, RelayToClient, ServerFrame } from '@agent-hub/core'
+import { deriveE2eKey, isSealed, open, seal } from './e2e'
 
 export type Listener = (frame: ServerFrame) => void
 export type Status = 'offline' | 'connecting' | 'devices' | 'online' | 'error'
@@ -23,6 +24,8 @@ export class DaemonClient {
   private attempts = 0
   private wanted = false
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null
+  private key: CryptoKey | null = null
+  private attached = false
   status: Status = 'offline'
   device = ''
   devices: RelayDevice[] = []
@@ -38,10 +41,12 @@ export class DaemonClient {
   }
 
   /** Conecta e resolve com `online`, ou com `devices` quando o relay listou dispositivos e nenhum foi escolhido. */
-  connect(opts: ConnectOptions): Promise<'online' | 'devices'> {
+  async connect(opts: ConnectOptions): Promise<'online' | 'devices'> {
     this.close()
     this.lastOpts = opts
     this.wanted = true
+    this.attached = false
+    this.key = opts.accountToken ? await deriveE2eKey(opts.accountToken) : null
     this.setStatus('connecting')
     return new Promise((resolve, reject) => {
       let settled = false
@@ -65,22 +70,29 @@ export class DaemonClient {
       }
       this.socket = socket
       socket.onopen = () => {
-        if (opts.accountToken) this.raw({ type: 'relay.auth', account_token: opts.accountToken, client: 'web' })
-        else this.raw({ type: 'auth', token: opts.token, protocol_version: protocolVersion, client: 'web' })
+        if (opts.accountToken) this.plain({ type: 'relay.auth', account_token: opts.accountToken, client: 'web' })
+        else this.plain({ type: 'auth', token: opts.token, protocol_version: protocolVersion, client: 'web' })
       }
-      socket.onmessage = (ev) => {
-        const frame = JSON.parse(String(ev.data)) as RelayToClient
+      socket.onmessage = async (ev) => {
+        const incoming = JSON.parse(String(ev.data)) as RelayToClient
+        let frame: Exclude<RelayToClient, { e: 1 }>
+        try {
+          frame = isSealed(incoming) && this.key ? await open<ServerFrame>(this.key, incoming) : (incoming as Exclude<RelayToClient, { e: 1 }>)
+        } catch {
+          return
+        }
         switch (frame.type) {
           case 'relay.devices':
             this.devices = frame.devices
-            if (opts.deviceId && frame.devices.some((d) => d.id === opts.deviceId)) this.raw({ type: 'relay.attach', device_id: opts.deviceId })
+            if (opts.deviceId && frame.devices.some((d) => d.id === opts.deviceId)) this.plain({ type: 'relay.attach', device_id: opts.deviceId })
             else {
               this.setStatus('devices')
               done('devices')
             }
             return
           case 'relay.attached':
-            this.raw({ type: 'auth', token: opts.token, protocol_version: protocolVersion, client: 'web' })
+            this.attached = true
+            void this.raw({ type: 'auth', token: opts.token, protocol_version: protocolVersion, client: 'web' })
             return
           case 'relay.detached':
             this.setStatus('offline', frame.reason)
@@ -126,7 +138,7 @@ export class DaemonClient {
 
   send(frame: ClientFrame): void {
     if (!this.socket || this.socket.readyState !== WebSocket.OPEN || this.status !== 'online') throw new Error('daemon desconectado')
-    this.raw(frame)
+    void this.raw(frame)
   }
 
   /** Envia um quadro e espera o proximo quadro do tipo indicado, ou um `error`. */
@@ -169,7 +181,12 @@ export class DaemonClient {
     }, delay)
   }
 
-  private raw(frame: ClientToRelay): void {
+  private async raw(frame: ClientFrame): Promise<void> {
+    if (this.key && this.attached) this.plain(await seal(this.key, frame))
+    else this.plain(frame)
+  }
+
+  private plain(frame: ClientToRelay): void {
     this.socket?.send(JSON.stringify(frame))
   }
 

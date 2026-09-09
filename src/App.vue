@@ -30,6 +30,7 @@ onMounted(async () => {
         <RouterLink to="/">Sessoes</RouterLink>
         <RouterLink to="/costs">Custos</RouterLink>
         <RouterLink to="/agents">Agentes</RouterLink>
+        <RouterLink to="/automations">Automacoes</RouterLink>
       </nav>
       <RouterLink to="/connect" class="status" :data-status="connection.status">
         {{ connection.status === 'online' ? connection.device : connection.status }}

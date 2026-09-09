@@ -28,6 +28,7 @@ pacote fixa `typescript@5` enquanto `core` e `daemon` usam a versao 7.
 | `/session/:id` | Chat com streaming, cartoes de ferramenta expandiveis, custo da sessao e do run, cancelar, subir limite apos estouro |
 | `/costs` | Relatorio do ledger por agente, modelo, sessao ou dia, com taxa de cache |
 | `/agents` | Perfis carregados e erros de carregamento |
+| `/automations` | Agendamentos por cron, rodar agora, apagar, interruptor geral e ultimas execucoes |
 
 Aprovacoes chegam em qualquer tela, no canto inferior direito, com aprovar
 e negar.

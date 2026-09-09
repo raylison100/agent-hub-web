@@ -403,6 +403,13 @@ button:disabled {
   color: var(--error);
 }
 
+.devices {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
 .table-wrap {
   overflow-x: auto;
 }

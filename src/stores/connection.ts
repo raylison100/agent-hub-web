@@ -1,9 +1,15 @@
+import type { RelayDevice } from '@agent-hub/core'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { client, type Status } from '../daemon/client'
 
-const urlKey = 'agent-hub.daemon.url'
-const tokenKey = 'agent-hub.daemon.token'
+const keys = {
+  mode: 'agent-hub.mode',
+  url: 'agent-hub.daemon.url',
+  token: 'agent-hub.daemon.token',
+  account: 'agent-hub.relay.account',
+  device: 'agent-hub.relay.device',
+}
 
 function stored(key: string, fallback: string): string {
   try {
@@ -22,8 +28,12 @@ function remember(key: string, value: string): void {
 }
 
 export const useConnection = defineStore('connection', () => {
-  const url = ref(stored(urlKey, 'ws://127.0.0.1:47311/ws'))
-  const token = ref(stored(tokenKey, ''))
+  const mode = ref<'direct' | 'relay'>(stored(keys.mode, 'direct') === 'relay' ? 'relay' : 'direct')
+  const url = ref(stored(keys.url, 'ws://127.0.0.1:47311/ws'))
+  const token = ref(stored(keys.token, ''))
+  const accountToken = ref(stored(keys.account, ''))
+  const deviceId = ref(stored(keys.device, ''))
+  const devices = ref<RelayDevice[]>([])
   const status = ref<Status>('offline')
   const detail = ref('')
   const device = ref('')
@@ -32,17 +42,33 @@ export const useConnection = defineStore('connection', () => {
     status.value = s
     detail.value = d ?? ''
     device.value = client.device
+    devices.value = client.devices
   })
 
-  async function connect(): Promise<void> {
-    remember(urlKey, url.value)
-    remember(tokenKey, token.value)
-    await client.connect(url.value, token.value)
+  function persist(): void {
+    remember(keys.mode, mode.value)
+    remember(keys.url, url.value)
+    remember(keys.token, token.value)
+    remember(keys.account, accountToken.value)
+    remember(keys.device, deviceId.value)
+  }
+
+  /** Conecta direto ou pelo relay. Devolve `devices` quando falta escolher o dispositivo. */
+  async function connect(): Promise<'online' | 'devices'> {
+    persist()
+    const result = await client.connect({
+      url: url.value,
+      token: token.value,
+      accountToken: mode.value === 'relay' ? accountToken.value : undefined,
+      deviceId: mode.value === 'relay' && deviceId.value ? deviceId.value : undefined,
+    })
+    devices.value = client.devices
+    return result
   }
 
   function disconnect(): void {
     client.close()
   }
 
-  return { url, token, status, detail, device, connect, disconnect }
+  return { mode, url, token, accountToken, deviceId, devices, status, detail, device, connect, disconnect }
 })

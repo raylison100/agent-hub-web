@@ -38,6 +38,24 @@ export const useSessions = defineStore('sessions', () => {
   const lastSeq = reactive(new Map<string, number>())
 
   client.on(handle)
+  let wasOnline = false
+  client.onStatus((s) => {
+    if (s === 'online' && wasOnline) void resync()
+    if (s === 'online') wasOnline = true
+  })
+
+  /** Depois de reconectar, busca a lista e os eventos perdidos de cada sessao aberta. */
+  async function resync(): Promise<void> {
+    try {
+      await refresh()
+      for (const [sessionId, since] of lastSeq) {
+        const sync = await client.request({ type: 'sync', session_id: sessionId, since_seq: since }, 'sync')
+        for (const e of sync.events) applyEvent(sessionId, e.run_id, e.seq, e.event)
+      }
+    } catch {
+      return
+    }
+  }
 
   async function refresh(): Promise<void> {
     const list = await client.request({ type: 'session.list', limit: 100 }, 'session.list')

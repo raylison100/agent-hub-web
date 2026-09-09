@@ -14,7 +14,11 @@ async function connect(): Promise<void> {
   busy.value = true
   error.value = ''
   try {
-    await connection.connect()
+    const result = await connection.connect()
+    if (result === 'devices') {
+      if (connection.devices.length === 0) error.value = 'nenhum dispositivo online nesta conta'
+      return
+    }
     await Promise.all([sessions.refresh(), sessions.loadAgents()])
     await router.push({ name: 'sessions' })
   } catch (err) {
@@ -23,28 +27,50 @@ async function connect(): Promise<void> {
     busy.value = false
   }
 }
+
+function pick(id: string): void {
+  connection.deviceId = id
+  void connect()
+}
 </script>
 
 <template>
   <section class="panel narrow">
     <h1>Conectar ao daemon</h1>
     <p class="muted">
-      No desktop, use o endereco local. No celular ou fora da rede, use a URL do relay ou o endereco pela VPN.
-      O token vem de <code>agent-hub-daemon pair</code>.
+      No desktop, use o endereco local. No celular ou fora da rede, use o relay com o token de conta.
+      Os valores vem de <code>agent-hub-daemon pair</code>.
     </p>
     <form @submit.prevent="connect">
       <label>
-        URL
-        <input v-model="connection.url" type="text" autocomplete="off" spellcheck="false" />
+        Modo
+        <select v-model="connection.mode">
+          <option value="direct">direto (local ou VPN)</option>
+          <option value="relay">pelo relay</option>
+        </select>
       </label>
       <label>
-        Token
+        {{ connection.mode === 'relay' ? 'URL do relay' : 'URL do daemon' }}
+        <input v-model="connection.url" type="text" autocomplete="off" spellcheck="false" :placeholder="connection.mode === 'relay' ? 'wss://relay.exemplo.com' : 'ws://127.0.0.1:47311/ws'" />
+      </label>
+      <label v-if="connection.mode === 'relay'">
+        Token de conta
+        <input v-model="connection.accountToken" type="password" autocomplete="off" />
+      </label>
+      <label>
+        Token do daemon
         <input v-model="connection.token" type="password" autocomplete="off" />
       </label>
+      <div v-if="connection.mode === 'relay' && connection.devices.length" class="devices">
+        <p class="muted small">Dispositivos online</p>
+        <button v-for="d in connection.devices" :key="d.id" type="button" :class="{ primary: d.id === connection.deviceId }" @click="pick(d.id)">
+          {{ d.name }}
+        </button>
+      </div>
       <p v-if="error" class="error">{{ error }}</p>
       <p v-else-if="connection.status === 'error'" class="error">{{ connection.detail }}</p>
       <div class="row">
-        <button class="primary" type="submit" :disabled="busy">Conectar</button>
+        <button class="primary" type="submit" :disabled="busy">{{ connection.mode === 'relay' && !connection.deviceId ? 'Listar dispositivos' : 'Conectar' }}</button>
         <button type="button" @click="connection.disconnect()">Desconectar</button>
       </div>
     </form>

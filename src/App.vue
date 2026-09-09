@@ -14,7 +14,11 @@ onMounted(async () => {
     return
   }
   try {
-    await connection.connect()
+    const result = await connection.connect()
+    if (result !== 'online') {
+      await router.push({ name: 'connect' })
+      return
+    }
     await Promise.all([sessions.refresh(), sessions.loadAgents()])
   } catch {
     await router.push({ name: 'connect' })

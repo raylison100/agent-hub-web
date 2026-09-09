@@ -103,7 +103,10 @@ onMounted(load)
         </thead>
         <tbody>
           <tr v-for="r in rows" :key="r.key">
-            <td>{{ r.key }}</td>
+            <td>
+              <RouterLink v-if="group === 'session' && r.key !== 'roteamento'" :to="{ name: 'chat', params: { id: r.key } }">{{ r.key.slice(0, 8) }}</RouterLink>
+              <span v-else>{{ r.key }}</span>
+            </td>
             <td class="num">{{ r.costUsd.toFixed(4) }}</td>
             <td class="num">{{ r.calls }}</td>
             <td class="num">{{ r.input }}</td>

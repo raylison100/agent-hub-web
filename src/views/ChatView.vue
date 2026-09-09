@@ -2,6 +2,7 @@
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import ToolCard from '../components/ToolCard.vue'
+import { client } from '../daemon/client'
 import { useSessions } from '../stores/sessions'
 
 const props = defineProps<{ id: string }>()
@@ -33,7 +34,28 @@ async function submit(): Promise<void> {
   const value = text.value.trim()
   if (!value || running.value) return
   text.value = ''
-  await send(value)
+  try {
+    await send(await expand(value))
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : String(err)
+  }
+}
+
+/** Atalhos MCP: `/servidor:prompt chave=valor` vira o texto do prompt; `/anexar servidor uri` anexa o recurso ao fim da mensagem. */
+async function expand(value: string): Promise<string> {
+  const prompt = /^\/([a-z0-9_-]+):([a-z0-9_.-]+)\s*(.*)$/is.exec(value)
+  if (prompt) {
+    const args: Record<string, string> = {}
+    for (const m of prompt[3]!.matchAll(/(\w+)=("([^"]*)"|\S+)/g)) args[m[1]!] = m[3] ?? m[2]!
+    const res = await client.request({ type: 'mcp.prompt.get', server: prompt[1]!, name: prompt[2]!, args }, 'mcp.prompt.get', 30000)
+    return res.text
+  }
+  const attach = /^\/anexar\s+(\S+)\s+(\S+)\s*([\s\S]*)$/i.exec(value)
+  if (attach) {
+    const res = await client.request({ type: 'mcp.resource.read', server: attach[1]!, uri: attach[2]! }, 'mcp.resource.read', 30000)
+    return `${attach[3]!.trim() || 'Considere o recurso anexado.'}\n\n<recurso uri="${attach[2]!}">\n${res.text}\n</recurso>`
+  }
+  return value
 }
 
 async function send(value: string): Promise<void> {
@@ -94,7 +116,12 @@ function onKey(e: KeyboardEvent): void {
         <input v-model="overrideValue" type="number" step="0.1" min="0" placeholder="novo limite do run em USD" />
         <button @click="override">Subir limite</button>
       </div>
-      <textarea v-model="text" rows="3" placeholder="Mensagem. Enter envia, Shift+Enter quebra linha." @keydown="onKey"></textarea>
+      <textarea
+        v-model="text"
+        rows="3"
+        placeholder="Mensagem. Enter envia, Shift+Enter quebra linha. Atalhos: /servidor:prompt chave=valor, /anexar servidor uri"
+        @keydown="onKey"
+      ></textarea>
       <div class="row">
         <button class="primary" :disabled="running" @click="submit">Enviar</button>
         <button v-if="running" @click="sessions.cancel(props.id)">Cancelar</button>

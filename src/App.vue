@@ -1,12 +1,17 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import RightPanel from './components/RightPanel.vue'
+import Sidebar from './components/Sidebar.vue'
 import { useConnection } from './stores/connection'
 import { useSessions } from './stores/sessions'
 
 const connection = useConnection()
 const sessions = useSessions()
 const router = useRouter()
+const route = useRoute()
+const sidebarOpen = ref(true)
+const panelOpen = ref(true)
 
 onMounted(async () => {
   if (!connection.token) {
@@ -19,7 +24,7 @@ onMounted(async () => {
       await router.push({ name: 'connect' })
       return
     }
-    await Promise.all([sessions.refresh(), sessions.loadAgents()])
+    await Promise.all([sessions.refresh(), sessions.loadAgents(), sessions.loadCostStatus()])
   } catch {
     await router.push({ name: 'connect' })
   }
@@ -27,22 +32,20 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="shell">
-    <header class="topbar">
-      <RouterLink to="/" class="brand">Agent Hub</RouterLink>
-      <nav>
-        <RouterLink to="/">Sessoes</RouterLink>
-        <RouterLink to="/costs">Custos</RouterLink>
-        <RouterLink to="/agents">Agentes</RouterLink>
-        <RouterLink to="/automations">Automacoes</RouterLink>
-      </nav>
-      <RouterLink to="/connect" class="status" :data-status="connection.status">
-        {{ connection.status === 'online' ? connection.device : connection.status }}
-      </RouterLink>
-    </header>
-    <main class="content">
+  <div class="shell" :class="{ 'no-sidebar': !sidebarOpen, 'no-panel': !panelOpen || route.name !== 'chat' }">
+    <Sidebar v-if="sidebarOpen" @collapse="sidebarOpen = false" />
+    <main class="main">
+      <header class="topbar">
+        <button v-if="!sidebarOpen" class="icon" title="Mostrar barra lateral" @click="sidebarOpen = true">|||</button>
+        <RouterView name="header" />
+        <span class="spacer"></span>
+        <button v-if="route.name === 'chat'" class="icon" :title="panelOpen ? 'Ocultar painel' : 'Mostrar painel'" @click="panelOpen = !panelOpen">
+          {{ panelOpen ? '>|' : '|<' }}
+        </button>
+      </header>
       <RouterView />
     </main>
+    <RightPanel v-if="panelOpen && route.name === 'chat'" :session-id="String(route.params.id ?? '')" />
     <div v-if="sessions.approvals.length" class="approval-dock">
       <div v-for="a in sessions.approvals" :key="a.id" class="approval">
         <div class="approval-head">

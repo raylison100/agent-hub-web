@@ -43,6 +43,22 @@ function total(): number {
   return rows.value.reduce((a, r) => a + r.costUsd, 0)
 }
 
+async function exportCsv(): Promise<void> {
+  error.value = ''
+  try {
+    const res = await client.request({ type: 'cost.export', since: since() }, 'cost.export', 60000)
+    const blob = new Blob([res.csv], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `agent-hub-ledger-${period.value}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : String(err)
+  }
+}
+
 function cacheRate(r: Row): string {
   const denom = r.input + r.cacheRead
   return denom === 0 ? '0%' : `${Math.round((r.cacheRead / denom) * 100)}%`
@@ -68,6 +84,7 @@ onMounted(load)
         <option value="all">tudo</option>
       </select>
       <button @click="load">Atualizar</button>
+      <button @click="exportCsv">Exportar CSV</button>
     </div>
     <p v-if="error" class="error">{{ error }}</p>
     <p v-else-if="!rows.length" class="muted">Sem registros no periodo.</p>

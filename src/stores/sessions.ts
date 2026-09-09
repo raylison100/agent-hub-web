@@ -187,6 +187,22 @@ export const useSessions = defineStore('sessions', () => {
       case 'skills_loaded':
         t.push({ kind: 'info', text: `Skills carregadas: ${event.names.join(', ')}` })
         return
+      case 'delegation':
+        t.push({
+          kind: 'info',
+          text:
+            event.phase === 'start'
+              ? `Delegado a ${event.agent}: ${event.task.slice(0, 120)}`
+              : `${event.agent} terminou com ${event.stop}, ${(event.costUsd ?? 0).toFixed(4)} USD`,
+        })
+        if (event.phase === 'end') run.costUsd += event.costUsd ?? 0
+        return
+      case 'hook':
+        if (!event.allow) t.push({ kind: 'info', text: `Hook ${event.event}${event.tool ? ` em ${event.tool}` : ''} negou: ${event.reason ?? ''}` })
+        return
+      case 'phase':
+        t.push({ kind: 'info', text: `Fase ${event.index + 1}: ${event.name} (${event.tools.join(', ')})` })
+        return
       case 'run_finished':
         closeLive(t)
         run.finished = true

@@ -7,6 +7,16 @@ export default defineConfig({
     vue(),
     VitePWA({
       registerType: 'autoUpdate',
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
+      injectManifest: {
+        globPatterns: ['**/*.{js,css,html,svg,webmanifest}'],
+      },
+      devOptions: {
+        enabled: true,
+        type: 'module',
+      },
       manifest: {
         name: 'Agent Hub',
         short_name: 'Agent Hub',
@@ -18,9 +28,6 @@ export default defineConfig({
         icons: [
           { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
         ],
-      },
-      workbox: {
-        navigateFallback: '/index.html',
       },
     }),
   ],

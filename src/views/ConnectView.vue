@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { disablePush, enablePush, pushState, testPush, type PushState } from '../push'
 import { useConnection } from '../stores/connection'
 import { useSessions } from '../stores/sessions'
 
@@ -9,6 +10,18 @@ const sessions = useSessions()
 const router = useRouter()
 const busy = ref(false)
 const error = ref('')
+const push = ref<PushState>('off')
+
+onMounted(() => void pushState().then((s) => (push.value = s)))
+
+async function togglePush(): Promise<void> {
+  error.value = ''
+  try {
+    push.value = push.value === 'on' ? await disablePush() : await enablePush()
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : String(err)
+  }
+}
 
 interface PairPayload {
   mode?: 'direct' | 'relay'
@@ -99,5 +112,14 @@ function pick(id: string): void {
         <button type="button" @click="connection.disconnect()">Desconectar</button>
       </div>
     </form>
+    <div v-if="connection.status === 'online'" class="push">
+      <p class="muted small">Notificacoes push para aprovacoes e fim de run. Funcionam em localhost e em HTTPS.</p>
+      <div class="row">
+        <button type="button" :disabled="push === 'unsupported' || push === 'denied'" @click="togglePush">
+          {{ push === 'on' ? 'Desativar notificacoes' : push === 'unsupported' ? 'Sem suporte neste navegador' : push === 'denied' ? 'Permissao negada' : 'Ativar notificacoes' }}
+        </button>
+        <button v-if="push === 'on'" type="button" @click="testPush">Testar</button>
+      </div>
+    </div>
   </section>
 </template>

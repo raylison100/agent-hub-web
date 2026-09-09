@@ -403,6 +403,12 @@ button:disabled {
   color: var(--error);
 }
 
+.push {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
 .devices {
   display: flex;
   gap: 8px;

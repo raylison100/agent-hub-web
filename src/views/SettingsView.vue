@@ -7,6 +7,10 @@ const router = useRouter()
 
 const grupos: { titulo: string; itens: { nome: string; rota: string }[] }[] = [
   {
+    titulo: 'Interface',
+    itens: [{ nome: 'Aparencia', rota: '/settings/aparencia' }],
+  },
+  {
     titulo: 'Uso',
     itens: [
       { nome: 'Custos', rota: '/settings/custos' },

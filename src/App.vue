@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import RightPanel from './components/RightPanel.vue'
 import Sidebar from './components/Sidebar.vue'
@@ -10,8 +10,26 @@ const connection = useConnection()
 const sessions = useSessions()
 const router = useRouter()
 const route = useRoute()
-const sidebarOpen = ref(true)
+const estreitoQuery = window.matchMedia('(max-width: 900px)')
+const estreito = ref(estreitoQuery.matches)
+const sidebarOpen = ref(!estreitoQuery.matches)
 const inSettings = computed(() => route.path.startsWith('/settings'))
+const sidebarFlutuante = computed(() => estreito.value && sidebarOpen.value && !inSettings.value)
+
+function onLargura(e: MediaQueryListEvent): void {
+  estreito.value = e.matches
+  sidebarOpen.value = !e.matches
+}
+
+onMounted(() => estreitoQuery.addEventListener('change', onLargura))
+onUnmounted(() => estreitoQuery.removeEventListener('change', onLargura))
+
+watch(
+  () => route.fullPath,
+  () => {
+    if (estreito.value) sidebarOpen.value = false
+  },
+)
 const panelOpen = ref(true)
 
 onMounted(async () => {
@@ -33,20 +51,21 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="shell" :class="{ 'no-sidebar': !sidebarOpen || inSettings, 'no-panel': !panelOpen || route.name !== 'chat' }">
-    <Sidebar v-if="sidebarOpen && !inSettings" @collapse="sidebarOpen = false" />
+  <div class="shell" :class="{ 'no-sidebar': !sidebarOpen || inSettings || estreito, 'no-panel': !panelOpen || route.name !== 'chat' || estreito }">
+    <Sidebar v-if="sidebarOpen && !inSettings" :class="{ flutuante: sidebarFlutuante }" @collapse="sidebarOpen = false" />
+    <div v-if="sidebarFlutuante" class="sidebar-backdrop" @click="sidebarOpen = false"></div>
     <main class="main">
       <header v-if="!inSettings" class="topbar">
         <button v-if="!sidebarOpen" class="icon" title="Mostrar barra lateral" @click="sidebarOpen = true">|||</button>
         <RouterView name="header" />
         <span class="spacer"></span>
-        <button v-if="route.name === 'chat'" class="icon" :title="panelOpen ? 'Ocultar painel' : 'Mostrar painel'" @click="panelOpen = !panelOpen">
+        <button v-if="route.name === 'chat' && !estreito" class="icon" :title="panelOpen ? 'Ocultar painel' : 'Mostrar painel'" @click="panelOpen = !panelOpen">
           {{ panelOpen ? '>|' : '|<' }}
         </button>
       </header>
       <RouterView />
     </main>
-    <RightPanel v-if="panelOpen && route.name === 'chat'" :session-id="String(route.params.id ?? '')" />
+    <RightPanel v-if="panelOpen && route.name === 'chat' && !estreito" :session-id="String(route.params.id ?? '')" />
     <div v-if="sessions.approvals.length" class="approval-dock">
       <div v-for="a in sessions.approvals" :key="a.id" class="approval">
         <div class="approval-head">

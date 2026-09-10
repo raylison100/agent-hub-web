@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useSessions, type TimelineItem, type ToolItem } from '../stores/sessions'
+import Markdown from './Markdown.vue'
 import SubagentCard from './SubagentCard.vue'
 import ToolGroup from './ToolGroup.vue'
 
@@ -41,7 +42,7 @@ const blocks = computed<Block[]>(() => {
         <pre>{{ block.item.text }}</pre>
       </div>
       <div v-else-if="block.item.kind === 'assistant'" class="assistant-text" :class="{ live: block.item.live }">
-        <pre>{{ block.item.text }}</pre>
+        <Markdown :text="block.item.text" />
         <div v-if="sessionId && block.item.runId && !block.item.live" class="feedback-row">
           <button class="feedback-btn" :class="{ active: sessions.feedback.get(block.item.runId) === 'good' }" title="Boa resposta: sobe a capacidade aprendida do agente" @click="vote(block.item.runId, 'good')">Boa</button>
           <button class="feedback-btn" :class="{ active: sessions.feedback.get(block.item.runId) === 'bad' }" title="Resposta ruim: desce a capacidade aprendida do agente" @click="vote(block.item.runId, 'bad')">Ruim</button>

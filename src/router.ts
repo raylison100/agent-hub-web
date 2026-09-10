@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import AgentsView from './views/AgentsView.vue'
+import AppearanceView from './views/AppearanceView.vue'
 import AutomationsView from './views/AutomationsView.vue'
 import ChatView from './views/ChatView.vue'
 import ConnectView from './views/ConnectView.vue'
@@ -25,6 +26,7 @@ export const router = createRouter({
       component: SettingsView,
       children: [
         { path: '', redirect: '/settings/custos' },
+        { path: 'aparencia', name: 'appearance', component: AppearanceView },
         { path: 'custos', name: 'costs', component: CostView },
         { path: 'automacoes', name: 'automations', component: AutomationsView },
         { path: 'agentes', name: 'agents', component: AgentsView },

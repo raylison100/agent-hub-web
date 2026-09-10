@@ -4,6 +4,7 @@ import { registerSW } from 'virtual:pwa-register'
 import App from './App.vue'
 import { isDesktop } from './daemon/native-dialog'
 import { router } from './router'
+import { aplicar, carregar } from './theme'
 import './styles.css'
 
 /** No desktop os arquivos ja vem no instalador; um service worker so serviria para servir versao velha depois de atualizar o app. */
@@ -18,4 +19,5 @@ async function dropServiceWorker(): Promise<void> {
 if (isDesktop()) void dropServiceWorker().catch(() => undefined)
 else registerSW({ immediate: true })
 
+aplicar(carregar())
 createApp(App).use(createPinia()).use(router).mount('#app')

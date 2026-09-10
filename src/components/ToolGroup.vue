@@ -6,7 +6,15 @@ import ToolCard from './ToolCard.vue'
 const props = defineProps<{ items: ToolItem[] }>()
 const open = ref(false)
 
+const readTools = new Set(['read_file', 'list_dir', 'search'])
+const commandTools = new Set(['run_command', 'git'])
+
+function plural(n: number, singular: string, many: string): string {
+  return `${n} ${n === 1 ? singular : many}`
+}
+
 const summary = computed(() => {
+  const created = new Set<string>()
   const edited = new Set<string>()
   const read = new Set<string>()
   let commands = 0
@@ -17,10 +25,11 @@ const summary = computed(() => {
   let pending = 0
   for (const item of props.items) {
     const args = (item.args ?? {}) as Record<string, unknown>
-    const path = typeof args.path === 'string' ? args.path : ''
-    if (item.name === 'edit_file' || item.name === 'write_file') edited.add(path)
-    else if (item.name === 'read_file' || item.name === 'list_dir' || item.name === 'search') read.add(path || item.name)
-    else if (item.name === 'run_command' || item.name === 'git') commands += 1
+    const path = typeof args.path === 'string' ? args.path : item.callId
+    if (item.name === 'write_file') created.add(path)
+    else if (item.name === 'edit_file') edited.add(path)
+    else if (readTools.has(item.name)) read.add(path)
+    else if (commandTools.has(item.name)) commands += 1
     else others += 1
     const d = diffStats(item)
     plus += d.plus
@@ -29,12 +38,14 @@ const summary = computed(() => {
     if (item.result === undefined && item.decision !== 'deny') pending += 1
   }
   const parts: string[] = []
-  if (edited.size) parts.push(`${edited.size === 1 ? 'Editou' : 'Editou'} ${edited.size} arquivo${edited.size > 1 ? 's' : ''}`)
-  if (read.size) parts.push(`leu ${read.size} ${read.size > 1 ? 'itens' : 'item'}`)
-  if (commands) parts.push(`executou ${commands} comando${commands > 1 ? 's' : ''}`)
-  if (others) parts.push(`${others} outra${others > 1 ? 's' : ''} ferramenta${others > 1 ? 's' : ''}`)
-  const text = parts.join(', ')
-  return { text: text ? text.charAt(0).toUpperCase() + text.slice(1) : `${props.items.length} ferramentas`, plus, minus, errors, pending }
+  if (created.size) parts.push(`criado ${plural(created.size, 'arquivo', 'arquivos')}`)
+  if (edited.size) parts.push(`editado ${plural(edited.size, 'arquivo', 'arquivos')}`)
+  if (read.size) parts.push(`lido ${plural(read.size, 'item', 'itens')}`)
+  if (commands) parts.push(`executado ${plural(commands, 'comando', 'comandos')}`)
+  if (others) parts.push(`usado ${plural(others, 'ferramenta', 'ferramentas')}`)
+  const text = parts.join(', ') || `${plural(props.items.length, 'ferramenta', 'ferramentas')}`
+  const touched = created.size + edited.size > 0
+  return { text: text.charAt(0).toUpperCase() + text.slice(1), plus, minus, touched, errors, pending }
 })
 </script>
 
@@ -42,11 +53,11 @@ const summary = computed(() => {
   <div class="tool-group" :class="{ open }">
     <button class="tool-group-head" @click="open = !open">
       <span class="tool-group-text">{{ summary.text }}</span>
-      <span v-if="summary.plus" class="plus">+{{ summary.plus }}</span>
-      <span v-if="summary.minus" class="minus">-{{ summary.minus }}</span>
-      <span v-if="summary.errors" class="tag error-tag">{{ summary.errors }} erro{{ summary.errors > 1 ? 's' : '' }}</span>
+      <span v-if="summary.touched" class="plus">+{{ summary.plus }}</span>
+      <span v-if="summary.touched" class="minus">-{{ summary.minus }}</span>
+      <span v-if="summary.errors" class="tag error-tag">{{ summary.errors === 1 ? '1 erro' : `${summary.errors} erros` }}</span>
       <span v-if="summary.pending" class="muted small">em andamento</span>
-      <span class="chevron">{{ open ? 'v' : '>' }}</span>
+      <span class="chevron" :class="{ open }">&rsaquo;</span>
     </button>
     <div v-if="open" class="tool-group-body">
       <ToolCard v-for="item in items" :key="item.callId" :item="item" />

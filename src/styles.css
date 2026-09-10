@@ -717,8 +717,13 @@ h1 {
 
 .chevron {
   margin-left: auto;
-  font-family: var(--mono);
-  font-size: 11px;
+  display: inline-block;
+  transition: transform 0.15s;
+  font-size: 15px;
+}
+
+.chevron.open {
+  transform: rotate(90deg);
 }
 
 .tool-group-body {

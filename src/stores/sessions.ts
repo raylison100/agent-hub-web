@@ -5,6 +5,12 @@ import { client } from '../daemon/client'
 
 export type Reasoning = 'low' | 'medium' | 'high' | 'max'
 
+export interface ImageAttachment {
+  mediaType: string
+  data: string
+  name?: string
+}
+
 export interface ToolItem {
   kind: 'tool'
   callId: string
@@ -33,7 +39,7 @@ export interface SubagentItem {
 }
 
 export type TimelineItem =
-  | { kind: 'user'; text: string }
+  | { kind: 'user'; text: string; images?: ImageAttachment[] }
   | { kind: 'assistant'; text: string; live: boolean; runId?: string }
   | ToolItem
   | SubagentItem
@@ -175,9 +181,9 @@ export const useSessions = defineStore('sessions', () => {
     return res.session
   }
 
-  async function start(sessionId: string, text: string, reasoning?: Reasoning, mode?: RunMode, agent?: string, improve?: boolean): Promise<string> {
-    timeline(sessionId).push({ kind: 'user', text })
-    const res = await client.request({ type: 'run.start', session_id: sessionId, text, reasoning, mode, agent, improve }, 'run.started')
+  async function start(sessionId: string, text: string, reasoning?: Reasoning, mode?: RunMode, agent?: string, improve?: boolean, images?: ImageAttachment[]): Promise<string> {
+    timeline(sessionId).push({ kind: 'user', text, images })
+    const res = await client.request({ type: 'run.start', session_id: sessionId, text, reasoning, mode, agent, improve, images: images?.map((i) => ({ media_type: i.mediaType, data: i.data, name: i.name })) }, 'run.started')
     runs.set(sessionId, { runId: res.run_id, costUsd: 0, steps: 0, finished: false, lastInputTokens: runs.get(sessionId)?.lastInputTokens ?? 0 })
     return res.run_id
   }

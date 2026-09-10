@@ -1565,3 +1565,43 @@ tfoot td {
   padding: 6px 14px;
   cursor: pointer;
 }
+
+.image-strip {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.image-thumb {
+  position: relative;
+  display: inline-flex;
+}
+
+.image-thumb img {
+  height: 56px;
+  width: auto;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+.image-thumb .chip-x {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  line-height: 1;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.sent-image {
+  max-width: 260px;
+  max-height: 220px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}

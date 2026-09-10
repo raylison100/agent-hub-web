@@ -34,7 +34,12 @@ const blocks = computed<Block[]>(() => {
   <template v-for="(block, i) in blocks" :key="i">
     <ToolGroup v-if="block.kind === 'tools'" :items="block.items" />
     <template v-else>
-      <div v-if="block.item.kind === 'user'" class="bubble user"><pre>{{ block.item.text }}</pre></div>
+      <div v-if="block.item.kind === 'user'" class="bubble user">
+        <div v-if="block.item.images?.length" class="image-strip">
+          <img v-for="(img, i) in block.item.images" :key="i" class="sent-image" :src="`data:${img.mediaType};base64,${img.data}`" :alt="img.name ?? 'imagem'" />
+        </div>
+        <pre>{{ block.item.text }}</pre>
+      </div>
       <div v-else-if="block.item.kind === 'assistant'" class="assistant-text" :class="{ live: block.item.live }">
         <pre>{{ block.item.text }}</pre>
         <div v-if="sessionId && block.item.runId && !block.item.live" class="feedback-row">

@@ -5,7 +5,7 @@ import { useRouter } from 'vue-router'
 import Composer from '../components/Composer.vue'
 import { client } from '../daemon/client'
 import { useConnection } from '../stores/connection'
-import { useSessions, type Reasoning } from '../stores/sessions'
+import { useSessions, type ImageAttachment, type Reasoning } from '../stores/sessions'
 
 const sessions = useSessions()
 const connection = useConnection()
@@ -110,7 +110,7 @@ function lastWorkspace(): string {
 }
 
 /** Cria a sessao com a pasta e o agente escolhidos no composer e ja dispara a primeira mensagem. */
-async function send(text: string, reasoning: Reasoning | undefined, mode: RunMode, agent: string | undefined, improve: boolean): Promise<void> {
+async function send(text: string, reasoning: Reasoning | undefined, mode: RunMode, agent: string | undefined, improve: boolean, images: ImageAttachment[]): Promise<void> {
   error.value = ''
   if (!workspace.value.trim()) {
     error.value = 'Escolha a pasta da sessao no seletor'
@@ -124,7 +124,7 @@ async function send(text: string, reasoning: Reasoning | undefined, mode: RunMod
     } catch {
       void 0
     }
-    await sessions.start(session.id, text, reasoning, mode, undefined, improve)
+    await sessions.start(session.id, text, reasoning, mode, undefined, improve, images)
     await router.push({ name: 'chat', params: { id: session.id } })
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err)

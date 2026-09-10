@@ -1,12 +1,55 @@
 <script setup lang="ts">
 import type { AgentSummary, RunMode, SessionSummary } from '@agent-hub/core'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
-import { useSessions, type Reasoning, type RunState } from '../stores/sessions'
+import { useSessions, type ImageAttachment, type Reasoning, type RunState } from '../stores/sessions'
 import PlusMenu, { type Attachment } from './PlusMenu.vue'
 import WorkspacePicker from './WorkspacePicker.vue'
 
 const showPlus = ref(false)
 const attachments = ref<Attachment[]>([])
+const images = ref<ImageAttachment[]>([])
+const imageError = ref('')
+const maxImageBytes = 5_000_000
+
+/** Le uma imagem colada, arrastada ou escolhida e guarda em base64 para enviar ao modelo. */
+async function addImage(file: File): Promise<void> {
+  imageError.value = ''
+  if (!file.type.startsWith('image/')) return
+  if (file.size > maxImageBytes) {
+    imageError.value = `Imagem acima de ${Math.round(maxImageBytes / 1_000_000)} MB`
+    return
+  }
+  const data = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onerror = () => reject(new Error('falha ao ler a imagem'))
+    reader.onload = () => resolve(String(reader.result).split(',')[1] ?? '')
+    reader.readAsDataURL(file)
+  })
+  images.value.push({ mediaType: file.type, data, name: file.name || 'imagem' })
+}
+
+function onPaste(e: ClipboardEvent): void {
+  const files = [...(e.clipboardData?.items ?? [])].filter((i) => i.kind === 'file').map((i) => i.getAsFile())
+  const found = files.filter((f): f is File => f !== null && f.type.startsWith('image/'))
+  if (found.length === 0) return
+  e.preventDefault()
+  for (const f of found) void addImage(f)
+}
+
+function onDrop(e: DragEvent): void {
+  const found = [...(e.dataTransfer?.files ?? [])].filter((f) => f.type.startsWith('image/'))
+  if (found.length === 0) return
+  e.preventDefault()
+  for (const f of found) void addImage(f)
+}
+
+function removeImage(i: number): void {
+  images.value.splice(i, 1)
+}
+
+function preview(img: ImageAttachment): string {
+  return `data:${img.mediaType};base64,${img.data}`
+}
 const textarea = ref<HTMLTextAreaElement | null>(null)
 
 function insert(snippet: string): void {
@@ -32,7 +75,7 @@ const props = defineProps<{
   workspace?: string
 }>()
 const emit = defineEmits<{
-  send: [text: string, reasoning: Reasoning | undefined, mode: RunMode, agent: string | undefined, improve: boolean]
+  send: [text: string, reasoning: Reasoning | undefined, mode: RunMode, agent: string | undefined, improve: boolean, images: ImageAttachment[]]
   cancel: []
   override: [limit: number]
   'update:workspace': [value: string]
@@ -189,12 +232,14 @@ function compact(n: number): string {
 
 function submit(): void {
   const value = text.value.trim()
-  if ((!value && attachments.value.length === 0) || props.running) return
+  if ((!value && attachments.value.length === 0 && images.value.length === 0) || props.running) return
   const blocks = attachments.value.map((a) => a.text)
   const full = [value || 'Considere os anexos.', ...blocks].join('\n\n')
+  const sent = images.value
   text.value = ''
   attachments.value = []
-  emit('send', full, reasoning.value || undefined, mode.value, props.session ? undefined : pendingAgent.value || undefined, improve.value)
+  images.value = []
+  emit('send', full, reasoning.value || undefined, mode.value, props.session ? undefined : pendingAgent.value || undefined, improve.value, sent)
 }
 
 function onKey(e: KeyboardEvent): void {
@@ -224,12 +269,22 @@ function override(): void {
           <button class="chip-x" type="button" @click="removeAttachment(i)">x</button>
         </span>
       </div>
+      <div v-if="images.length" class="image-strip">
+        <span v-for="(img, i) in images" :key="i" class="image-thumb">
+          <img :src="preview(img)" :alt="img.name ?? 'imagem'" />
+          <button class="chip-x" type="button" title="Remover" @click="removeImage(i)">x</button>
+        </span>
+      </div>
+      <p v-if="imageError" class="error small">{{ imageError }}</p>
       <textarea
         ref="textarea"
         v-model="text"
         rows="3"
-        placeholder="Mensagem. Enter envia, Shift+Enter quebra linha. Atalhos: /skill, /servidor:prompt chave=valor, /anexar servidor uri"
+        placeholder="Mensagem. Enter envia, Shift+Enter quebra linha. Cole ou arraste imagens aqui."
         @keydown="onKey"
+        @paste="onPaste"
+        @drop="onDrop"
+        @dragover.prevent
       ></textarea>
       <div class="composer-bar">
         <WorkspacePicker v-if="!session" :model-value="workspace ?? ''" @update:model-value="(v: string) => emit('update:workspace', v)" />
@@ -312,7 +367,7 @@ function override(): void {
           </div>
         </div>
         <button v-if="running" class="ghost" @click="$emit('cancel')">Parar</button>
-        <button class="primary" :disabled="running || (!text.trim() && !attachments.length)" @click="submit">Enviar</button>
+        <button class="primary" :disabled="running || (!text.trim() && !attachments.length && !images.length)" @click="submit">Enviar</button>
       </div>
     </div>
   </footer>

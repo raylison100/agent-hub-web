@@ -8,7 +8,7 @@ import Composer from '../components/Composer.vue'
 import Timeline from '../components/Timeline.vue'
 import { client } from '../daemon/client'
 import { useConnection } from '../stores/connection'
-import { useSessions, type Reasoning } from '../stores/sessions'
+import { useSessions, type ImageAttachment, type Reasoning } from '../stores/sessions'
 
 const props = defineProps<{ id: string }>()
 const sessions = useSessions()
@@ -47,10 +47,10 @@ async function load(): Promise<void> {
   }
 }
 
-async function send(value: string, reasoning: Reasoning | undefined, mode?: RunMode, agent?: string, improve?: boolean): Promise<void> {
+async function send(value: string, reasoning: Reasoning | undefined, mode?: RunMode, agent?: string, improve?: boolean, images?: ImageAttachment[]): Promise<void> {
   error.value = ''
   try {
-    await sessions.start(props.id, await expand(value), reasoning, mode, agent, improve)
+    await sessions.start(props.id, await expand(value), reasoning, mode, agent, improve, images)
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err)
   }

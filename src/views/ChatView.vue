@@ -94,7 +94,7 @@ function scrollDown(): void {
       <span v-if="run" class="muted small">run {{ run.costUsd.toFixed(4) }} USD, {{ run.steps }} passos</span>
     </div>
     <div ref="scroller" class="timeline">
-      <Timeline :items="items" />
+      <Timeline :items="items" :session-id="id" />
       <div v-if="running" class="working"><span class="pulse" data-status="running"></span> trabalhando</div>
     </div>
     <Composer

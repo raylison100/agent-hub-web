@@ -34,7 +34,7 @@ export interface SubagentItem {
 
 export type TimelineItem =
   | { kind: 'user'; text: string }
-  | { kind: 'assistant'; text: string; live: boolean }
+  | { kind: 'assistant'; text: string; live: boolean; runId?: string }
   | ToolItem
   | SubagentItem
   | { kind: 'info'; text: string; tone?: 'warn' | 'error' }
@@ -88,6 +88,7 @@ export const useSessions = defineStore('sessions', () => {
   const terminal = reactive(new Map<string, TerminalEntry[]>())
   const subByRun = new Map<string, SubagentItem>()
   const costStatus = ref<CostStatus | null>(null)
+  const feedback = reactive(new Map<string, 'good' | 'bad'>())
 
   client.on(handle)
   let wasOnline = false
@@ -157,6 +158,7 @@ export const useSessions = defineStore('sessions', () => {
     const res = await client.request({ type: 'session.get', session_id: sessionId }, 'session.get')
     timelines.set(sessionId, withChildren(fromMessages(res.messages), res.children ?? []))
     if (!terminal.has(sessionId)) terminal.set(sessionId, [])
+    void loadFeedback(sessionId)
     const since = lastSeq.get(sessionId)
     if (since !== undefined) {
       const sync = await client.request({ type: 'sync', session_id: sessionId, since_seq: since }, 'sync')
@@ -176,6 +178,21 @@ export const useSessions = defineStore('sessions', () => {
     const res = await client.request({ type: 'run.start', session_id: sessionId, text, reasoning, mode, agent, improve }, 'run.started')
     runs.set(sessionId, { runId: res.run_id, costUsd: 0, steps: 0, finished: false, lastInputTokens: runs.get(sessionId)?.lastInputTokens ?? 0 })
     return res.run_id
+  }
+
+  async function loadFeedback(sessionId: string): Promise<void> {
+    try {
+      const res = await client.request({ type: 'feedback.list', session_id: sessionId }, 'feedback.list')
+      for (const item of res.items) feedback.set(item.run_id, item.verdict)
+    } catch {
+      return
+    }
+  }
+
+  function setFeedback(sessionId: string, runId: string, verdict: 'good' | 'bad' | 'none'): void {
+    if (verdict === 'none') feedback.delete(runId)
+    else feedback.set(runId, verdict)
+    client.send({ type: 'feedback.set', session_id: sessionId, run_id: runId, verdict })
   }
 
   function cancel(sessionId: string): void {
@@ -234,6 +251,11 @@ export const useSessions = defineStore('sessions', () => {
       sessions.value.sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt - a.updatedAt)
       return
     }
+    if (frame.type === 'feedback.ok') {
+      if (frame.verdict === 'none') feedback.delete(frame.run_id)
+      else feedback.set(frame.run_id, frame.verdict)
+      return
+    }
     if (frame.type === 'session.deleted') {
       sessions.value = sessions.value.filter((s) => s.id !== frame.session_id)
       timelines.delete(frame.session_id)
@@ -263,7 +285,7 @@ export const useSessions = defineStore('sessions', () => {
       case 'text_delta': {
         const last = t[t.length - 1]
         if (last && last.kind === 'assistant' && last.live) last.text += event.delta
-        else t.push({ kind: 'assistant', text: event.delta, live: true })
+        else t.push({ kind: 'assistant', text: event.delta, live: true, runId })
         return
       }
       case 'tool_call':
@@ -383,6 +405,8 @@ export const useSessions = defineStore('sessions', () => {
     approvals,
     terminal,
     costStatus,
+    feedback,
+    setFeedback,
     refresh,
     update,
     remove,
@@ -439,8 +463,8 @@ function fromMessages(messages: Message[]): TimelineItem[] {
     }
     if (m.role === 'assistant') {
       const text = m.parts.map((p) => (p.type === 'text' ? p.text : '')).join('')
-      if (text) t.push({ kind: 'assistant', text, live: false })
-      for (const p of m.parts) if (p.type === 'tool_call') t.push({ kind: 'tool', callId: p.id, name: p.name, args: p.args, decision: 'executed', runId: '' })
+      if (text) t.push({ kind: 'assistant', text, live: false, runId: m.runId })
+      for (const p of m.parts) if (p.type === 'tool_call') t.push({ kind: 'tool', callId: p.id, name: p.name, args: p.args, decision: 'executed', runId: m.runId ?? '' })
       continue
     }
     for (const p of m.parts) {

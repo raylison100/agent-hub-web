@@ -877,6 +877,58 @@ h1 {
   min-width: 360px;
 }
 
+.popover.left {
+  right: auto;
+  left: 0;
+  min-width: 340px;
+}
+
+.mode-button[data-mode='auto_approve'] {
+  border-color: var(--accent);
+}
+
+.mode-button[data-mode='draft'] {
+  border-color: var(--warn);
+}
+
+.mode-option {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 12px;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  padding: 6px 8px;
+  border-radius: 6px;
+}
+
+.mode-option:hover,
+.mode-option.active {
+  background: var(--panel);
+}
+
+.mode-name {
+  font-weight: 600;
+}
+
+.mode-detail {
+  grid-column: 1;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.mode-option .menu-key {
+  grid-row: 1 / span 2;
+  align-self: center;
+}
+
+.check {
+  color: var(--accent);
+  font-family: var(--mono);
+  margin-left: 6px;
+}
+
 .popover-title {
   font-weight: 600;
   margin-bottom: 8px;

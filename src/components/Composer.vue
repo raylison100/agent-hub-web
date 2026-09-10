@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { AgentSummary, SessionSummary } from '@agent-hub/core'
-import { computed, ref } from 'vue'
+import type { AgentSummary, RunMode, SessionSummary } from '@agent-hub/core'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useSessions, type Reasoning, type RunState } from '../stores/sessions'
 
 const props = defineProps<{
@@ -10,14 +10,59 @@ const props = defineProps<{
   running: boolean
   error: string
 }>()
-const emit = defineEmits<{ send: [text: string, reasoning: Reasoning | undefined]; cancel: []; override: [limit: number] }>()
+const emit = defineEmits<{ send: [text: string, reasoning: Reasoning | undefined, mode: RunMode]; cancel: []; override: [limit: number] }>()
 
 const sessions = useSessions()
 const text = ref('')
 const reasoning = ref<'' | Reasoning>('')
 const showUsage = ref(false)
 const showEffort = ref(false)
+const showMode = ref(false)
 const overrideValue = ref('')
+
+const modes: { value: RunMode; label: string; detail: string }[] = [
+  { value: 'auto_approve', label: 'Automatico', detail: 'Aprova tudo, exceto comandos destrutivos, que ainda perguntam' },
+  { value: 'normal', label: 'Manual', detail: 'Segue a politica do perfil: pergunta antes de escrever e executar' },
+  { value: 'accept_edits', label: 'Aceitar edicoes', detail: 'Escreve arquivos sem perguntar; comandos ainda pedem aprovacao' },
+  { value: 'draft', label: 'Planejar', detail: 'So le e propoe; nenhuma escrita nem execucao' },
+]
+
+const modeKey = 'agent-hub.mode.run'
+const mode = ref<RunMode>(storedMode())
+
+function storedMode(): RunMode {
+  try {
+    const v = localStorage.getItem(modeKey)
+    return modes.some((m) => m.value === v) ? (v as RunMode) : 'normal'
+  } catch {
+    return 'normal'
+  }
+}
+
+function pickMode(value: RunMode): void {
+  mode.value = value
+  showMode.value = false
+  try {
+    localStorage.setItem(modeKey, value)
+  } catch {
+    return
+  }
+}
+
+const modeLabel = computed(() => modes.find((m) => m.value === mode.value)?.label ?? 'Manual')
+
+function onGlobalKey(e: KeyboardEvent): void {
+  if (!showMode.value) return
+  const i = Number(e.key) - 1
+  if (i >= 0 && i < modes.length) {
+    e.preventDefault()
+    pickMode(modes[i]!.value)
+  }
+  if (e.key === 'Escape') showMode.value = false
+}
+
+onMounted(() => window.addEventListener('keydown', onGlobalKey))
+onUnmounted(() => window.removeEventListener('keydown', onGlobalKey))
 
 const levels: { value: Reasoning; label: string }[] = [
   { value: 'low', label: 'Mais rapido' },
@@ -68,7 +113,7 @@ function submit(): void {
   const value = text.value.trim()
   if (!value || props.running) return
   text.value = ''
-  emit('send', value, reasoning.value || undefined)
+  emit('send', value, reasoning.value || undefined, mode.value)
 }
 
 function onKey(e: KeyboardEvent): void {
@@ -99,11 +144,22 @@ function override(): void {
         @keydown="onKey"
       ></textarea>
       <div class="composer-bar">
+        <div class="popover-anchor">
+          <button class="chip-button mode-button" :data-mode="mode" @click="showMode = !showMode; showEffort = false; showUsage = false">{{ modeLabel }}</button>
+          <div v-if="showMode" class="popover left">
+            <div class="popover-title">Modo</div>
+            <button v-for="(m, i) in modes" :key="m.value" class="mode-option" :class="{ active: m.value === mode }" @click="pickMode(m.value)">
+              <span class="mode-name">{{ m.label }} <span v-if="m.value === mode" class="check">v</span></span>
+              <span class="mode-detail">{{ m.detail }}</span>
+              <span class="menu-key">{{ i + 1 }}</span>
+            </button>
+          </div>
+        </div>
         <span class="chip" :title="agent?.description">{{ agent?.provider ?? '' }}/{{ agent?.model ?? session?.agent ?? '' }}</span>
         <span v-if="run?.phase" class="chip">fase {{ run.phase }}</span>
         <span class="spacer"></span>
         <div class="popover-anchor">
-          <button class="chip-button" @click="showEffort = !showEffort; showUsage = false">Esforco {{ effortLabel }}</button>
+          <button class="chip-button" @click="showEffort = !showEffort; showUsage = false; showMode = false">Esforco {{ effortLabel }}</button>
           <div v-if="showEffort" class="popover">
             <div class="popover-title">Esforco de raciocinio</div>
             <div class="effort-scale">
@@ -121,7 +177,7 @@ function override(): void {
           </div>
         </div>
         <div class="popover-anchor">
-          <button class="chip-button" @click="showUsage = !showUsage; showEffort = false">
+          <button class="chip-button" @click="showUsage = !showUsage; showEffort = false; showMode = false">
             <span class="ring" :style="{ '--pct': contextPct + '%' }"></span>
             {{ contextPct }}% contexto
           </button>

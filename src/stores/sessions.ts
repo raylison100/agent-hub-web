@@ -1,4 +1,4 @@
-import type { AgentSummary, Message, RunEvent, ServerFrame, SessionSummary } from '@agent-hub/core'
+import type { AgentSummary, Message, RunEvent, RunMode, ServerFrame, SessionSummary } from '@agent-hub/core'
 import { defineStore } from 'pinia'
 import { reactive, ref } from 'vue'
 import { client } from '../daemon/client'
@@ -168,9 +168,9 @@ export const useSessions = defineStore('sessions', () => {
     return res.session
   }
 
-  async function start(sessionId: string, text: string, reasoning?: Reasoning): Promise<string> {
+  async function start(sessionId: string, text: string, reasoning?: Reasoning, mode?: RunMode): Promise<string> {
     timeline(sessionId).push({ kind: 'user', text })
-    const res = await client.request({ type: 'run.start', session_id: sessionId, text, reasoning }, 'run.started')
+    const res = await client.request({ type: 'run.start', session_id: sessionId, text, reasoning, mode }, 'run.started')
     runs.set(sessionId, { runId: res.run_id, costUsd: 0, steps: 0, finished: false, lastInputTokens: runs.get(sessionId)?.lastInputTokens ?? 0 })
     return res.run_id
   }

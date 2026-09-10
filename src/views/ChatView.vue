@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { RunMode } from '@agent-hub/core'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -46,10 +47,10 @@ async function load(): Promise<void> {
   }
 }
 
-async function send(value: string, reasoning: Reasoning | undefined): Promise<void> {
+async function send(value: string, reasoning: Reasoning | undefined, mode?: RunMode): Promise<void> {
   error.value = ''
   try {
-    await sessions.start(props.id, await expand(value), reasoning)
+    await sessions.start(props.id, await expand(value), reasoning, mode)
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err)
   }

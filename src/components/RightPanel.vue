@@ -19,7 +19,7 @@ const rodando = computed(() => tarefas.value.filter((t) => t.status === 'rodando
 
 async function carregarTarefas(): Promise<void> {
   try {
-    tarefas.value = (await client.request({ type: 'tasks.list' }, 'tasks.list', 15000)).tasks
+    tarefas.value = (await client.request({ type: 'tasks.list', session_id: props.sessionId }, 'tasks.list', 15000)).tasks
   } catch {
     return
   }
@@ -74,7 +74,7 @@ function quando(ts: number): string {
 
     <div v-else-if="tab === 'tarefas'" class="panel-scroll">
       <div class="panel-head-row">
-        <span class="muted small">Subagentes em segundo plano, de todas as sessoes</span>
+        <span class="muted small">Subagentes em segundo plano desta sessao</span>
         <button class="ghost small" @click="carregarTarefas">Atualizar</button>
       </div>
       <p v-if="!tarefas.length" class="muted small pad">Nada rodando em segundo plano. A ferramenta <code>spawn</code> cria tarefas assim.</p>
@@ -86,7 +86,7 @@ function quando(ts: number): string {
           <span class="cost">{{ t.cost_usd.toFixed(4) }} USD</span>
         </div>
         <div class="muted small">{{ t.task }}</div>
-        <div class="muted small">{{ t.session_title || 'sessao' }}, ha {{ quando(t.started_at) }}<span v-if="t.collected">, ja recolhida</span></div>
+        <div class="muted small">ha {{ quando(t.started_at) }}<span v-if="t.collected">, ja recolhida pelo agente</span></div>
       </div>
     </div>
 

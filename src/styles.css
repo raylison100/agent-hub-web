@@ -2254,30 +2254,43 @@ tfoot td {
 
 .bulk-bar {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 6px;
-  flex-wrap: wrap;
-  padding: 6px 10px;
-  margin: 0 8px 4px;
-  border: 1px solid var(--accent);
-  background: var(--accent-soft);
+  padding: 7px 10px;
+  margin: 0 8px 6px;
+  border: 1px solid var(--border);
+  background: var(--panel);
   border-radius: var(--radius-sm);
 }
 
-.bulk-bar.coluna {
-  flex-direction: column;
-  align-items: stretch;
+.bulk-linha {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
 }
 
 .bulk-count {
   font-size: var(--fs-small);
-  margin-right: auto;
+  color: var(--muted);
 }
 
+.bulk-acoes,
 .bulk-grupos {
   display: flex;
   gap: 4px;
   flex-wrap: wrap;
+}
+
+.bulk-acoes .chip-button {
+  flex: 1;
+  justify-content: center;
+  text-align: center;
+}
+
+.chip-button.perigo {
+  color: var(--error);
+  border-color: color-mix(in srgb, var(--error) 40%, var(--border));
 }
 
 .danger-text {
@@ -2285,8 +2298,17 @@ tfoot td {
 }
 
 .session-link.selecionada {
-  background: var(--accent-soft);
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
   box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.session-link .check {
+  width: 8px;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--accent);
+  text-align: center;
+  flex: none;
 }
 
 .terminal-pane {

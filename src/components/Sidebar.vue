@@ -232,11 +232,15 @@ async function commitRename(): Promise<void> {
     <RouterLink to="/" class="new-session">+ Novo</RouterLink>
     <input v-model="query" class="search" type="search" placeholder="Buscar sessoes" />
     <div v-if="selecionadas.size > 0" class="bulk-bar">
-      <span class="bulk-count">{{ selecionadas.size }} selecionada{{ selecionadas.size > 1 ? 's' : '' }}</span>
-      <button class="ghost small" @click="novoGrupo = ''">Agrupar</button>
-      <button class="ghost small" @click="arquivarSelecionadas">Arquivar</button>
-      <button class="ghost small danger-text" @click="pendingBulk = 'apagar'">Apagar</button>
-      <button class="ghost small" @click="limparSelecao">Limpar</button>
+      <div class="bulk-linha">
+        <span class="bulk-count">{{ selecionadas.size }} selecionada{{ selecionadas.size > 1 ? 's' : '' }}</span>
+        <button class="link small" @click="limparSelecao">limpar</button>
+      </div>
+      <div class="bulk-acoes">
+        <button class="chip-button" @click="novoGrupo = ''">Agrupar</button>
+        <button class="chip-button" @click="arquivarSelecionadas">Arquivar</button>
+        <button class="chip-button perigo" @click="pendingBulk = 'apagar'">Apagar</button>
+      </div>
     </div>
     <div v-if="novoGrupo !== null" class="bulk-bar coluna">
       <input
@@ -267,7 +271,8 @@ async function commitRename(): Promise<void> {
             @blur="commitRename"
           />
           <RouterLink v-else :to="{ name: 'chat', params: { id: s.id } }" class="session-link" :class="{ active: isActive(s.id), selecionada: selecionadas.has(s.id) }" :title="`${s.agent} em ${s.workspace}`" @click="onClickSessao($event, s)" @contextmenu="openMenu($event, s)" @mouseup.right="openMenu($event, s)">
-            <span class="dot" :data-mark="mark(s)"></span>
+            <span v-if="selecionadas.has(s.id)" class="check">v</span>
+            <span v-else class="dot" :data-mark="mark(s)"></span>
             <span class="session-title">{{ s.title }}</span>
             <span class="session-cost">{{ s.costUsd.toFixed(2) }}</span>
           </RouterLink>
@@ -296,7 +301,8 @@ async function commitRename(): Promise<void> {
             @contextmenu="openMenu($event, s)"
             @mouseup.right="openMenu($event, s)"
           >
-            <span class="dot" :data-mark="mark(s)"></span>
+            <span v-if="selecionadas.has(s.id)" class="check">v</span>
+            <span v-else class="dot" :data-mark="mark(s)"></span>
             <span class="session-title">{{ s.title }}</span>
             <span class="session-cost">{{ s.costUsd.toFixed(2) }}</span>
           </RouterLink>

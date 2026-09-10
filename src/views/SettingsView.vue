@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { ultimaTela } from '../router'
 
 const router = useRouter()
 
@@ -30,13 +32,21 @@ const grupos: { titulo: string; itens: { nome: string; rota: string }[] }[] = [
 ]
 
 function fechar(): void {
-  void router.push({ name: 'sessions' })
+  void router.push(ultimaTela.path)
 }
+
+function onKey(e: KeyboardEvent): void {
+  if (e.key === 'Escape') fechar()
+}
+
+onMounted(() => window.addEventListener('keydown', onKey))
+onUnmounted(() => window.removeEventListener('keydown', onKey))
 </script>
 
 <template>
   <section class="settings">
     <aside class="settings-nav">
+      <button class="settings-back" @click="fechar">&lsaquo; Voltar</button>
       <div class="settings-title">Configuracoes</div>
       <template v-for="g in grupos" :key="g.titulo">
         <div class="settings-group">{{ g.titulo }}</div>
@@ -44,7 +54,7 @@ function fechar(): void {
       </template>
     </aside>
     <div class="settings-body">
-      <button class="settings-close" title="Voltar para as sessoes" @click="fechar">x</button>
+      <button class="settings-close" title="Fechar configuracoes, tecla Esc" @click="fechar">x</button>
       <RouterView />
     </div>
   </section>

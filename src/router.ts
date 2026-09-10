@@ -11,6 +11,9 @@ import SessionsView from './views/SessionsView.vue'
 import SettingsView from './views/SettingsView.vue'
 import SkillsView from './views/SkillsView.vue'
 
+/** Ultima tela fora das configuracoes, para o botao de voltar cair onde o usuario estava. */
+export const ultimaTela = { path: '/' }
+
 export const router = createRouter({
   history: createWebHistory(),
   routes: [
@@ -38,4 +41,9 @@ export const router = createRouter({
     { path: '/secrets', redirect: '/settings/chaves' },
     { path: '/connectors', redirect: '/settings/conectores' },
   ],
+})
+
+router.beforeEach((to, from) => {
+  if (!from.path.startsWith('/settings') && from.path !== '/connect' && from.matched.length > 0) ultimaTela.path = from.fullPath
+  return true
 })

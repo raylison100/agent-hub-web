@@ -280,7 +280,7 @@ function override(): void {
         ref="textarea"
         v-model="text"
         rows="3"
-        placeholder="Mensagem. Enter envia, Shift+Enter quebra linha. Cole ou arraste imagens aqui."
+        placeholder="Descreva uma tarefa ou faca uma pergunta"
         @keydown="onKey"
         @paste="onPaste"
         @drop="onDrop"

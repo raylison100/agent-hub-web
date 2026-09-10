@@ -909,16 +909,20 @@ h1 {
 }
 
 .mode-name {
+  grid-column: 1;
+  grid-row: 1;
   font-weight: 600;
 }
 
 .mode-detail {
   grid-column: 1;
+  grid-row: 2;
   font-size: 11px;
   color: var(--muted);
 }
 
 .mode-option .menu-key {
+  grid-column: 2;
   grid-row: 1 / span 2;
   align-self: center;
 }

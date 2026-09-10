@@ -116,11 +116,13 @@ const menuItems = computed<MenuItem[]>(() => {
   ]
 })
 
+const vazio = computed(() => sessions.sessions.length === 0)
+
 const itensLista = computed<MenuItem[]>(() => [
-  { id: 'select-all', label: 'Selecionar todas', key: 'A' },
+  { id: 'select-all', label: 'Selecionar todas', key: 'A', disabled: visible.value.length === 0 },
   { id: 'archived', label: showArchived.value ? 'Ocultar arquivadas' : 'Mostrar arquivadas' },
   { id: 'sep', label: '', separator: true },
-  { id: 'delete-all', label: 'Apagar todas as conversas', danger: true },
+  { id: 'delete-all', label: 'Apagar todas as conversas', danger: true, disabled: vazio.value },
 ])
 
 function abrirMenuLista(e: MouseEvent): void {
@@ -135,7 +137,7 @@ async function pickLista(id: string): Promise<void> {
     showArchived.value = !showArchived.value
     await sessions.refresh(showArchived.value)
   }
-  if (id === 'delete-all') pendingBulk.value = 'apagar-tudo'
+  if (id === 'delete-all' && !vazio.value) pendingBulk.value = 'apagar-tudo'
 }
 
 /** Clique com Shift seleciona o intervalo, com Ctrl alterna um item, sem modificador abre a sessao. */
@@ -174,6 +176,7 @@ function limparSelecao(): void {
 }
 
 function selecionarTodas(): void {
+  if (visible.value.length === 0) return
   selecionadas.value = new Set(visible.value.map((s) => s.id))
 }
 

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue'
 import { client } from '../daemon/client'
+import { isDesktop, pickFolder, toDaemonPath } from '../daemon/native-dialog'
 
 export interface Attachment {
   kind: 'file' | 'tree' | 'local'
@@ -8,8 +9,14 @@ export interface Attachment {
   text: string
 }
 
+export interface ImagemAnexada {
+  mediaType: string
+  data: string
+  name?: string
+}
+
 const props = defineProps<{ sessionId?: string; workspace?: string; agent: string | undefined }>()
-const emit = defineEmits<{ attach: [a: Attachment]; insert: [text: string]; close: [] }>()
+const emit = defineEmits<{ attach: [a: Attachment]; image: [i: ImagemAnexada]; insert: [text: string]; close: [] }>()
 
 type View = 'root' | 'files' | 'commands' | 'connectors' | 'plugins'
 const view = ref<View>('root')
@@ -64,6 +71,26 @@ async function attachTree(): Promise<void> {
 
 function pickLocal(): void {
   fileInput.value?.click()
+}
+
+/** Pasta pelo dialogo do sistema no desktop; no navegador, navegando pelas pastas do workspace. */
+async function adicionarPasta(): Promise<void> {
+  error.value = ''
+  if (!isDesktop()) {
+    await browse('.')
+    view.value = 'files'
+    return
+  }
+  try {
+    const escolhida = await pickFolder('Adicionar pasta a sessao')
+    if (escolhida === null) return
+    const alvo = toDaemonPath(escolhida)
+    const res = await client.request({ type: 'fs.tree', workspace: alvo, depth: 3 }, 'fs.tree', 30000)
+    emit('attach', { kind: 'tree', label: `pasta ${alvo.split('/').pop()}`, text: `<pasta path="${alvo}">\n${res.text}\n</pasta>` })
+    emit('close')
+  } catch (err) {
+    error.value = describe(err)
+  }
 }
 
 async function onLocalFiles(e: Event): Promise<void> {
@@ -143,11 +170,10 @@ onUnmounted(() => {
 
 <template>
   <div ref="root" class="popover left plus-menu">
-    <input ref="fileInput" type="file" multiple hidden @change="onLocalFiles" />
+    <input ref="fileInput" type="file" multiple hidden accept="image/*,text/*,.md,.txt,.json,.ts,.js,.py,.php,.go,.rs,.yaml,.yml,.csv,.log" @change="onLocalFiles" />
     <template v-if="view === 'root'">
-      <button class="menu-item" @click="browse('.')"><span>Anexar arquivo do workspace</span><span class="menu-key">&gt;</span></button>
-      <button class="menu-item" @click="pickLocal"><span>Anexar arquivo do computador</span></button>
-      <button class="menu-item" @click="browse('.').then(() => (view = 'files'))"><span>Adicionar pasta como arvore</span><span class="menu-key">&gt;</span></button>
+      <button class="menu-item" @click="pickLocal"><span>Adicionar arquivos ou fotos</span></button>
+      <button class="menu-item" @click="adicionarPasta"><span>Adicionar pasta</span><span class="menu-key">{{ isDesktop() ? '' : '&gt;' }}</span></button>
       <div class="menu-sep"></div>
       <button class="menu-item" @click="loadCommands"><span>Comandos de barra</span><span class="menu-key">&gt;</span></button>
       <button class="menu-item" @click="loadConnectors"><span>Conectores e plugins</span><span class="menu-key">&gt;</span></button>

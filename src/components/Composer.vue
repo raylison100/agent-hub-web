@@ -2,7 +2,7 @@
 import type { AgentSummary, RunMode, SessionSummary } from '@agent-hub/core'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useSessions, type ImageAttachment, type Reasoning, type RunState } from '../stores/sessions'
-import PlusMenu, { type Attachment } from './PlusMenu.vue'
+import PlusMenu, { type Attachment, type ImagemAnexada } from './PlusMenu.vue'
 import WorkspacePicker from './WorkspacePicker.vue'
 
 const showPlus = ref(false)
@@ -296,6 +296,7 @@ function override(): void {
             :workspace="session ? undefined : workspace"
             :agent="session?.agent ?? (pendingAgent || undefined)"
             @attach="addAttachment"
+            @image="(i: ImagemAnexada) => images.push(i)"
             @insert="insert"
             @close="showPlus = false"
           />

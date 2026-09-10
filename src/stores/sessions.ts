@@ -26,6 +26,10 @@ export interface SubagentItem {
   stop?: string
   items: TimelineItem[]
   steps: number
+  runId: string
+  taskId?: string
+  background?: boolean
+  worktree?: { path: string; branch: string }
 }
 
 export type TimelineItem =
@@ -79,7 +83,7 @@ export const useSessions = defineStore('sessions', () => {
   const approvals = ref<Approval[]>([])
   const lastSeq = reactive(new Map<string, number>())
   const terminal = reactive(new Map<string, TerminalEntry[]>())
-  const activeSub = new Map<string, SubagentItem>()
+  const subByRun = new Map<string, SubagentItem>()
   const costStatus = ref<CostStatus | null>(null)
 
   client.on(handle)
@@ -101,9 +105,29 @@ export const useSessions = defineStore('sessions', () => {
     }
   }
 
-  async function refresh(): Promise<void> {
-    const list = await client.request({ type: 'session.list', limit: 200 }, 'session.list')
+  let includeArchived = false
+
+  async function refresh(archived?: boolean): Promise<void> {
+    if (archived !== undefined) includeArchived = archived
+    const list = await client.request({ type: 'session.list', limit: 200, include_archived: includeArchived }, 'session.list')
     sessions.value = list.sessions
+  }
+
+  async function update(sessionId: string, patch: { title?: string; pinned?: boolean; archived?: boolean }): Promise<void> {
+    client.send({ type: 'session.update', session_id: sessionId, ...patch })
+  }
+
+  async function remove(sessionId: string): Promise<void> {
+    client.send({ type: 'session.delete', session_id: sessionId })
+    sessions.value = sessions.value.filter((s) => s.id !== sessionId)
+    timelines.delete(sessionId)
+    runs.delete(sessionId)
+  }
+
+  async function fork(sessionId: string): Promise<SessionSummary> {
+    const res = await client.request({ type: 'session.fork', session_id: sessionId }, 'session.created')
+    await refresh()
+    return res.session
   }
 
   async function loadAgents(): Promise<void> {
@@ -148,7 +172,6 @@ export const useSessions = defineStore('sessions', () => {
     timeline(sessionId).push({ kind: 'user', text })
     const res = await client.request({ type: 'run.start', session_id: sessionId, text, reasoning }, 'run.started')
     runs.set(sessionId, { runId: res.run_id, costUsd: 0, steps: 0, finished: false, lastInputTokens: runs.get(sessionId)?.lastInputTokens ?? 0 })
-    activeSub.delete(sessionId)
     return res.run_id
   }
 
@@ -205,7 +228,13 @@ export const useSessions = defineStore('sessions', () => {
       const i = sessions.value.findIndex((s) => s.id === frame.session.id)
       if (i >= 0) sessions.value[i] = frame.session
       else sessions.value.unshift(frame.session)
-      sessions.value.sort((a, b) => b.updatedAt - a.updatedAt)
+      sessions.value.sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt - a.updatedAt)
+      return
+    }
+    if (frame.type === 'session.deleted') {
+      sessions.value = sessions.value.filter((s) => s.id !== frame.session_id)
+      timelines.delete(frame.session_id)
+      runs.delete(frame.session_id)
       return
     }
     if (frame.type === 'automation.started' || frame.type === 'workflow.started') {
@@ -223,7 +252,7 @@ export const useSessions = defineStore('sessions', () => {
       run = { runId, costUsd: 0, steps: 0, finished: false, lastInputTokens: 0 }
       runs.set(sessionId, run)
     }
-    const sub = activeSub.get(sessionId)
+    const sub = subByRun.get(runId)
     const nested = sub !== undefined && runId !== run.runId
     const t = nested ? sub.items : main
 
@@ -265,18 +294,29 @@ export const useSessions = defineStore('sessions', () => {
       case 'delegation':
         if (event.phase === 'start') {
           closeLive(main)
-          const item: SubagentItem = { kind: 'subagent', agent: event.agent, task: event.task, status: 'running', costUsd: 0, items: [], steps: 0 }
+          const item: SubagentItem = {
+            kind: 'subagent',
+            agent: event.agent,
+            task: event.task,
+            status: 'running',
+            costUsd: 0,
+            items: [],
+            steps: 0,
+            runId: event.runId,
+            taskId: event.taskId,
+            background: event.background,
+            worktree: event.worktree,
+          }
           main.push(item)
-          activeSub.set(sessionId, item)
+          subByRun.set(event.runId, item)
         } else {
-          const current = activeSub.get(sessionId)
+          const current = subByRun.get(event.runId)
           if (current) {
             current.status = 'done'
             current.costUsd = event.costUsd ?? current.costUsd
             current.stop = event.stop
             closeLive(current.items)
           }
-          activeSub.delete(sessionId)
           run.costUsd += event.costUsd ?? 0
         }
         return
@@ -333,6 +373,9 @@ export const useSessions = defineStore('sessions', () => {
     terminal,
     costStatus,
     refresh,
+    update,
+    remove,
+    fork,
     loadAgents,
     loadCostStatus,
     open,

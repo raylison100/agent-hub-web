@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+
+const sentFirst = new Set<string>()
 import Composer from '../components/Composer.vue'
 import Timeline from '../components/Timeline.vue'
 import { client } from '../daemon/client'
@@ -11,6 +13,7 @@ const props = defineProps<{ id: string }>()
 const sessions = useSessions()
 const connection = useConnection()
 const route = useRoute()
+const router = useRouter()
 const error = ref('')
 const scroller = ref<HTMLElement | null>(null)
 
@@ -33,7 +36,11 @@ async function load(): Promise<void> {
     await sessions.open(props.id)
     await nextTick(scrollDown)
     const first = route.query.first
-    if (typeof first === 'string' && first) await send(first, undefined)
+    if (typeof first === 'string' && first && !sentFirst.has(props.id)) {
+      sentFirst.add(props.id)
+      await router.replace({ name: 'chat', params: { id: props.id } })
+      await send(first, undefined)
+    }
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err)
   }

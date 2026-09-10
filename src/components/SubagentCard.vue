@@ -12,6 +12,8 @@ const open = ref(true)
     <button class="subagent-head" @click="open = !open">
       <span class="pulse" :data-status="item.status"></span>
       <span class="subagent-agent">{{ item.agent }}</span>
+      <span v-if="item.taskId" class="tag">{{ item.background ? 'paralelo' : 'sync' }} {{ item.taskId }}</span>
+      <span v-if="item.worktree" class="tag" :title="item.worktree.path">worktree {{ item.worktree.branch }}</span>
       <span class="subagent-task">{{ item.task }}</span>
       <span class="muted small">{{ item.steps }} passos</span>
       <span class="cost">{{ item.costUsd.toFixed(4) }} USD</span>

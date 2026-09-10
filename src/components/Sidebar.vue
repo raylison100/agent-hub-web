@@ -375,11 +375,13 @@ async function commitRename(): Promise<void> {
       </div>
       <p v-if="!visible.length" class="muted small pad">Nenhuma sessao.</p>
     </div>
-    <button class="user-bar" @click="abrirMenuUsuario">
-      <span class="avatar">{{ nomeUsuario.charAt(0) }}</span>
-      <span class="user-nome">{{ nomeUsuario }}</span>
-      <span class="status-dot" :data-status="connection.status" :title="connection.status === 'online' ? connection.device : connection.status"></span>
-    </button>
+    <div class="user-area">
+      <button class="user-bar" @click="abrirMenuUsuario">
+        <span class="avatar">{{ nomeUsuario.charAt(0) }}</span>
+        <span class="user-nome">{{ nomeUsuario }}</span>
+        <span class="status-dot" :data-status="connection.status" :title="connection.status === 'online' ? connection.device : connection.status"></span>
+      </button>
+    </div>
     <ContextMenu v-if="menu" :x="menu.x" :y="menu.y" :items="menuItems" @pick="pick" @close="menu = null" />
     <ContextMenu v-if="menuLista" :x="menuLista.x" :y="menuLista.y" :items="itensLista" @pick="pickLista" @close="menuLista = null" />
     <ContextMenu v-if="menuUsuario" :x="menuUsuario.x" :y="menuUsuario.y" :items="itensUsuario" @pick="pickUsuario" @close="menuUsuario = null" />

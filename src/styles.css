@@ -108,6 +108,10 @@ button:disabled {
   cursor: default;
 }
 
+input[hidden] {
+  display: none !important;
+}
+
 input,
 select,
 textarea {

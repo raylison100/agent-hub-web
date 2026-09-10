@@ -152,7 +152,7 @@ export const useSessions = defineStore('sessions', () => {
 
   async function open(sessionId: string): Promise<void> {
     const res = await client.request({ type: 'session.get', session_id: sessionId }, 'session.get')
-    timelines.set(sessionId, fromMessages(res.messages))
+    timelines.set(sessionId, withChildren(fromMessages(res.messages), res.children ?? []))
     if (!terminal.has(sessionId)) terminal.set(sessionId, [])
     const since = lastSeq.get(sessionId)
     if (since !== undefined) {
@@ -430,6 +430,23 @@ function fromMessages(messages: Message[]): TimelineItem[] {
     }
   }
   return t
+}
+
+/** Insere cartoes de subagente no historico carregado, logo apos a chamada delegate ou spawn com a mesma tarefa. */
+function withChildren(items: TimelineItem[], children: { run_id: string; agent: string; messages: Message[] }[]): TimelineItem[] {
+  if (children.length === 0) return items
+  const out = [...items]
+  for (const c of children) {
+    const task = c.messages.find((m) => m.role === 'user')?.parts.find((p) => p.type === 'text')
+    const taskText = task && task.type === 'text' ? task.text : ''
+    const nested = fromMessages(c.messages).filter((i) => i.kind !== 'user')
+    const last = [...c.messages].reverse().find((m) => m.role === 'assistant')
+    const card: SubagentItem = { kind: 'subagent', agent: c.agent, task: taskText, status: 'done', costUsd: 0, items: nested, steps: c.messages.filter((m) => m.role === 'assistant').length, runId: c.run_id, stop: last ? 'end' : undefined }
+    const anchor = out.findIndex((i) => i.kind === 'tool' && (i.name === 'delegate' || i.name === 'spawn') && String((i.args as { task?: string } | undefined)?.task ?? '') === taskText)
+    if (anchor >= 0) out.splice(anchor + 1, 0, card)
+    else out.push(card)
+  }
+  return out
 }
 
 /** Linhas adicionadas e removidas estimadas a partir dos argumentos de edicao. */

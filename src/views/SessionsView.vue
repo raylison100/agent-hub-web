@@ -49,13 +49,13 @@ function onKey(e: KeyboardEvent): void {
       <label>
         Agente
         <select v-model="agent">
-          <option value="">Roteamento por regra (usa a primeira mensagem)</option>
+          <option value="">Auto: o harness escolhe o agente a cada mensagem</option>
           <option v-for="a in sessions.agents" :key="a.name" :value="a.name">{{ a.name }} ({{ a.provider }}/{{ a.model }})</option>
         </select>
       </label>
       <label>
         Primeira mensagem
-        <textarea v-model="firstMessage" rows="5" placeholder="Opcional. Necessaria quando o agente vem do roteamento. Ctrl+Enter cria e envia." @keydown="onKey"></textarea>
+        <textarea v-model="firstMessage" rows="5" placeholder="Opcional. Ctrl+Enter cria e envia." @keydown="onKey"></textarea>
       </label>
       <p v-if="error" class="error">{{ error }}</p>
       <div class="row">

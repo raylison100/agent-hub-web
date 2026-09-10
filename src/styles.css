@@ -946,6 +946,30 @@ h1 {
   line-height: 1;
 }
 
+.chip-button.auto {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.improved {
+  align-self: stretch;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.improved summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.improved pre {
+  margin: 6px 0 2px;
+  white-space: pre-wrap;
+  font: inherit;
+}
+
 .mode-button[data-mode='auto_approve'] {
   border-color: var(--accent);
 }

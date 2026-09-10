@@ -38,6 +38,7 @@ export type TimelineItem =
   | ToolItem
   | SubagentItem
   | { kind: 'info'; text: string; tone?: 'warn' | 'error' }
+  | { kind: 'improved'; by: string; original: string; improved: string; costUsd: number }
 
 export interface Approval {
   id: string
@@ -58,6 +59,8 @@ export interface RunState {
   error?: string
   lastInputTokens: number
   phase?: string
+  agent?: string
+  model?: string
 }
 
 export interface TerminalEntry {
@@ -113,7 +116,7 @@ export const useSessions = defineStore('sessions', () => {
     sessions.value = list.sessions
   }
 
-  async function update(sessionId: string, patch: { title?: string; pinned?: boolean; archived?: boolean }): Promise<void> {
+  async function update(sessionId: string, patch: { title?: string; pinned?: boolean; archived?: boolean; agent?: string }): Promise<void> {
     client.send({ type: 'session.update', session_id: sessionId, ...patch })
   }
 
@@ -168,9 +171,9 @@ export const useSessions = defineStore('sessions', () => {
     return res.session
   }
 
-  async function start(sessionId: string, text: string, reasoning?: Reasoning, mode?: RunMode): Promise<string> {
+  async function start(sessionId: string, text: string, reasoning?: Reasoning, mode?: RunMode, agent?: string, improve?: boolean): Promise<string> {
     timeline(sessionId).push({ kind: 'user', text })
-    const res = await client.request({ type: 'run.start', session_id: sessionId, text, reasoning, mode }, 'run.started')
+    const res = await client.request({ type: 'run.start', session_id: sessionId, text, reasoning, mode, agent, improve }, 'run.started')
     runs.set(sessionId, { runId: res.run_id, costUsd: 0, steps: 0, finished: false, lastInputTokens: runs.get(sessionId)?.lastInputTokens ?? 0 })
     return res.run_id
   }
@@ -339,6 +342,14 @@ export const useSessions = defineStore('sessions', () => {
         run.phase = event.name
         t.push({ kind: 'info', text: `Fase ${event.index + 1}: ${event.name}` })
         return
+      case 'routed':
+        run.agent = event.agent
+        run.model = event.model
+        t.push({ kind: 'info', text: `Roteado para ${event.agent} (${event.model}) por ${event.by === 'rule' ? 'regra' : event.by === 'classifier' ? 'classificador' : event.by === 'default' ? 'padrao' : event.by}${event.intent ? `, intencao ${event.intent}` : ''}` })
+        return
+      case 'prompt_improved':
+        t.push({ kind: 'improved', by: event.by, original: event.original, improved: event.improved, costUsd: event.costUsd })
+        return
       case 'run_finished':
         if (nested) return
         closeLive(main)
@@ -410,8 +421,11 @@ function fromMessages(messages: Message[]): TimelineItem[] {
   const t: TimelineItem[] = []
   for (const m of messages) {
     if (m.role === 'user') {
-      const text = m.parts.map((p) => (p.type === 'text' ? p.text : '')).filter(Boolean).join('\n\n')
+      const raw = m.parts.map((p) => (p.type === 'text' ? p.text : '')).filter(Boolean).join('\n\n')
+      const original = /<pedido_original>\n([\s\S]*?)\n<\/pedido_original>/.exec(raw)
+      const text = original ? original[1]! : raw
       t.push(m.kind === 'compaction' ? { kind: 'info', text } : { kind: 'user', text })
+      if (original) t.push({ kind: 'improved', by: 'harness', original: text, improved: raw.slice(0, original.index).trim(), costUsd: 0 })
       continue
     }
     if (m.role === 'assistant') {

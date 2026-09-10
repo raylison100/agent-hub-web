@@ -47,10 +47,10 @@ async function load(): Promise<void> {
   }
 }
 
-async function send(value: string, reasoning: Reasoning | undefined, mode?: RunMode): Promise<void> {
+async function send(value: string, reasoning: Reasoning | undefined, mode?: RunMode, agent?: string, improve?: boolean): Promise<void> {
   error.value = ''
   try {
-    await sessions.start(props.id, await expand(value), reasoning, mode)
+    await sessions.start(props.id, await expand(value), reasoning, mode, agent, improve)
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err)
   }

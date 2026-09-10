@@ -29,7 +29,41 @@ const props = defineProps<{
   running: boolean
   error: string
 }>()
-const emit = defineEmits<{ send: [text: string, reasoning: Reasoning | undefined, mode: RunMode]; cancel: []; override: [limit: number] }>()
+const emit = defineEmits<{ send: [text: string, reasoning: Reasoning | undefined, mode: RunMode, agent: string | undefined, improve: boolean]; cancel: []; override: [limit: number] }>()
+
+const improveKey = 'agent-hub.improve'
+const improve = ref(readImprove())
+
+function readImprove(): boolean {
+  try {
+    return localStorage.getItem(improveKey) !== 'off'
+  } catch {
+    return true
+  }
+}
+
+function toggleImprove(): void {
+  improve.value = !improve.value
+  try {
+    localStorage.setItem(improveKey, improve.value ? 'on' : 'off')
+  } catch {
+    return
+  }
+}
+
+const showAgent = ref(false)
+
+function pickAgent(name: string): void {
+  showAgent.value = false
+  void sessions.update(props.session?.id ?? '', { agent: name })
+}
+
+const agentChip = computed(() => {
+  const s = props.session
+  if (!s) return ''
+  if (s.agent === 'auto') return props.run?.model ? `Auto: ${props.run.model}` : 'Auto'
+  return `${props.agent?.provider ?? ''}/${props.agent?.model ?? s.agent}`
+})
 
 const sessions = useSessions()
 const text = ref('')
@@ -135,7 +169,7 @@ function submit(): void {
   const full = [value || 'Considere os anexos.', ...blocks].join('\n\n')
   text.value = ''
   attachments.value = []
-  emit('send', full, reasoning.value || undefined, mode.value)
+  emit('send', full, reasoning.value || undefined, mode.value, undefined, improve.value)
 }
 
 function onKey(e: KeyboardEvent): void {
@@ -188,7 +222,25 @@ function override(): void {
             </button>
           </div>
         </div>
-        <span class="chip" :title="agent?.description">{{ agent?.provider ?? '' }}/{{ agent?.model ?? session?.agent ?? '' }}</span>
+        <div class="popover-anchor">
+          <button class="chip-button" :class="{ auto: session?.agent === 'auto' }" :title="agent?.description ?? 'o harness escolhe a cada mensagem'" @click="showAgent = !showAgent; showMode = false; showEffort = false; showUsage = false; showPlus = false">
+            {{ agentChip }}
+          </button>
+          <div v-if="showAgent" class="popover left">
+            <div class="popover-title">Agente desta sessao</div>
+            <button class="mode-option" :class="{ active: session?.agent === 'auto' }" @click="pickAgent('auto')">
+              <span class="mode-name">Auto</span>
+              <span class="mode-detail">O harness escolhe a cada mensagem por regra, classificador ou padrao</span>
+            </button>
+            <button v-for="a in sessions.agents" :key="a.name" class="mode-option" :class="{ active: session?.agent === a.name }" @click="pickAgent(a.name)">
+              <span class="mode-name">{{ a.name }}</span>
+              <span class="mode-detail">{{ a.provider }}/{{ a.model }}, {{ a.description }}</span>
+            </button>
+          </div>
+        </div>
+        <button class="chip-button" :class="{ auto: improve }" title="Um modelo barato reescreve seu pedido para o agente escolhido; o original fica registrado" @click="toggleImprove">
+          {{ improve ? 'Melhorar prompt: on' : 'Melhorar prompt: off' }}
+        </button>
         <span v-if="run?.phase" class="chip">fase {{ run.phase }}</span>
         <span class="spacer"></span>
         <div class="popover-anchor">

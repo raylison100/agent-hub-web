@@ -30,6 +30,10 @@ const blocks = computed<Block[]>(() => {
       <div v-if="block.item.kind === 'user'" class="bubble user"><pre>{{ block.item.text }}</pre></div>
       <div v-else-if="block.item.kind === 'assistant'" class="assistant-text" :class="{ live: block.item.live }"><pre>{{ block.item.text }}</pre></div>
       <SubagentCard v-else-if="block.item.kind === 'subagent'" :item="block.item" />
+      <details v-else-if="block.item.kind === 'improved'" class="improved">
+        <summary>Prompt reescrito por {{ block.item.by }}<span v-if="block.item.costUsd" class="muted small"> ({{ block.item.costUsd.toFixed(5) }} USD)</span></summary>
+        <pre>{{ block.item.improved }}</pre>
+      </details>
       <div v-else-if="block.item.kind === 'info'" class="info" :data-tone="block.item.tone">{{ block.item.text }}</div>
     </template>
   </template>

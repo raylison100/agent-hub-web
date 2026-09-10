@@ -193,6 +193,7 @@ async function commitRename(): Promise<void> {
       <RouterLink to="/agents">Agentes</RouterLink>
       <RouterLink to="/automations">Automacoes</RouterLink>
       <RouterLink to="/secrets">Chaves</RouterLink>
+      <RouterLink to="/connectors">Conectores</RouterLink>
       <RouterLink to="/connect" class="status" :data-status="connection.status">
         {{ connection.status === 'online' ? connection.device : connection.status }}
       </RouterLink>

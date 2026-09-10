@@ -3,6 +3,7 @@ import AgentsView from './views/AgentsView.vue'
 import AutomationsView from './views/AutomationsView.vue'
 import ChatView from './views/ChatView.vue'
 import ConnectView from './views/ConnectView.vue'
+import ConnectorsView from './views/ConnectorsView.vue'
 import CostView from './views/CostView.vue'
 import SecretsView from './views/SecretsView.vue'
 import SessionsView from './views/SessionsView.vue'
@@ -17,5 +18,6 @@ export const router = createRouter({
     { path: '/agents', name: 'agents', component: AgentsView },
     { path: '/automations', name: 'automations', component: AutomationsView },
     { path: '/secrets', name: 'secrets', component: SecretsView },
+    { path: '/connectors', name: 'connectors', component: ConnectorsView },
   ],
 })

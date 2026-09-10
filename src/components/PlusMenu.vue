@@ -188,6 +188,7 @@ onUnmounted(() => {
     <template v-else-if="view === 'connectors'">
       <div class="menu-head"><button class="link" @click="view = 'root'">&lt; voltar</button></div>
       <div class="menu-list">
+        <RouterLink to="/connectors" class="menu-item" @click="emit('close')"><span>Gerenciar conectores</span><span class="menu-key">&gt;</span></RouterLink>
         <div class="group-title">Servidores MCP</div>
         <button v-for="s in servers" :key="s.name" class="menu-item" @click="connect(s.name)">
           <span>{{ s.name }} <span class="muted small">{{ s.transport }}</span></span>

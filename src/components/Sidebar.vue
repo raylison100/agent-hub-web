@@ -4,6 +4,7 @@ import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useConnection } from '../stores/connection'
 import { useSessions } from '../stores/sessions'
+import ConfirmDialog from './ConfirmDialog.vue'
 import ContextMenu, { type MenuItem } from './ContextMenu.vue'
 
 defineEmits<{ collapse: [] }>()
@@ -14,6 +15,7 @@ const router = useRouter()
 const query = ref('')
 const showArchived = ref(false)
 const menu = ref<{ x: number; y: number; session: SessionSummary } | null>(null)
+const pendingDelete = ref<SessionSummary | null>(null)
 const renaming = ref<{ id: string; title: string } | null>(null)
 
 const visible = computed(() => {
@@ -103,11 +105,18 @@ async function pick(id: string): Promise<void> {
       if (s.archived === false && isActive(s.id)) await router.push({ name: 'sessions' })
       return
     case 'delete':
-      if (!window.confirm(`Apagar a sessao "${s.title}"? O historico e removido; o custo fica no ledger.`)) return
-      await sessions.remove(s.id)
-      if (isActive(s.id)) await router.push({ name: 'sessions' })
+      pendingDelete.value = s
       return
   }
+}
+
+/** Confirmacao propria: o `confirm` do navegador nao existe no webview do desktop e a acao morria em silencio. */
+async function confirmDelete(): Promise<void> {
+  const s = pendingDelete.value
+  pendingDelete.value = null
+  if (!s) return
+  await sessions.remove(s.id)
+  if (isActive(s.id)) await router.push({ name: 'sessions' })
 }
 
 async function commitRename(): Promise<void> {
@@ -189,5 +198,13 @@ async function commitRename(): Promise<void> {
       </RouterLink>
     </nav>
     <ContextMenu v-if="menu" :x="menu.x" :y="menu.y" :items="menuItems" @pick="pick" @close="menu = null" />
+    <ConfirmDialog
+      v-if="pendingDelete"
+      :title="`Apagar a sessao ${pendingDelete.title.slice(0, 60)}?`"
+      detail="O historico e removido. O custo ja registrado continua no ledger."
+      confirm-label="Apagar"
+      @confirm="confirmDelete"
+      @cancel="pendingDelete = null"
+    />
   </aside>
 </template>

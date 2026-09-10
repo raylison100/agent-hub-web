@@ -4,8 +4,9 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useSessions, type ImageAttachment, type Reasoning, type RunState } from '../stores/sessions'
 import PlusMenu, { type Attachment, type ImagemAnexada } from './PlusMenu.vue'
 import WorkspacePicker from './WorkspacePicker.vue'
+import { aberto, alternar, fechar } from '../popover'
 
-const showPlus = ref(false)
+const showPlus = aberto('plus')
 const attachments = ref<Attachment[]>([])
 const images = ref<ImageAttachment[]>([])
 const imageError = ref('')
@@ -54,7 +55,7 @@ const textarea = ref<HTMLTextAreaElement | null>(null)
 
 function insert(snippet: string): void {
   text.value = text.value ? `${text.value.replace(/\s*$/, '')} ${snippet}` : snippet
-  showPlus.value = false
+  fechar('plus')
   textarea.value?.focus()
 }
 
@@ -103,10 +104,10 @@ function toggleImprove(): void {
   }
 }
 
-const showAgent = ref(false)
+const showAgent = aberto('agente')
 
 function pickAgent(name: string): void {
-  showAgent.value = false
+  fechar('agente')
   if (!props.session) {
     pendingAgent.value = name === autoAgent ? '' : name
     return
@@ -128,9 +129,9 @@ const agentChip = computed(() => {
 const sessions = useSessions()
 const text = ref('')
 const reasoning = ref<'' | Reasoning>('')
-const showUsage = ref(false)
-const showEffort = ref(false)
-const showMode = ref(false)
+const showUsage = aberto('uso')
+const showEffort = aberto('esforco')
+const showMode = aberto('modo')
 const overrideValue = ref('')
 
 const modes: { value: RunMode; label: string; detail: string }[] = [
@@ -161,7 +162,7 @@ function storedMode(): RunMode {
 
 function pickMode(value: RunMode): void {
   mode.value = value
-  showMode.value = false
+  fechar('modo')
   if (props.session) void sessions.update(props.session.id, { mode: value })
   try {
     localStorage.setItem(modeKey, value)
@@ -179,7 +180,7 @@ function onGlobalKey(e: KeyboardEvent): void {
     e.preventDefault()
     pickMode(modes[i]!.value)
   }
-  if (e.key === 'Escape') showMode.value = false
+  if (e.key === 'Escape') fechar('modo')
 }
 
 onMounted(() => window.addEventListener('keydown', onGlobalKey))
@@ -289,7 +290,7 @@ function override(): void {
       <div class="composer-bar">
         <WorkspacePicker v-if="!session" :model-value="workspace ?? ''" @update:model-value="(v: string) => emit('update:workspace', v)" />
         <div class="popover-anchor">
-          <button class="chip-button plus" :disabled="!session && !workspace" title="Anexar, comandos, conectores" @click="showPlus = !showPlus; showMode = false; showEffort = false; showUsage = false">+</button>
+          <button class="chip-button plus" :disabled="!session && !workspace" title="Anexar, comandos, conectores" @click="alternar('plus')">+</button>
           <PlusMenu
             v-if="showPlus"
             :session-id="session?.id"
@@ -298,11 +299,11 @@ function override(): void {
             @attach="addAttachment"
             @image="(i: ImagemAnexada) => images.push(i)"
             @insert="insert"
-            @close="showPlus = false"
+            @close="fechar('plus')"
           />
         </div>
         <div class="popover-anchor">
-          <button class="chip-button mode-button" :data-mode="mode" @click="showMode = !showMode; showEffort = false; showUsage = false">{{ modeLabel }}</button>
+          <button class="chip-button mode-button" :data-mode="mode" @click="alternar('modo')">{{ modeLabel }}</button>
           <div v-if="showMode" class="popover left">
             <div class="popover-title">Modo</div>
             <button v-for="(m, i) in modes" :key="m.value" class="mode-option" :class="{ active: m.value === mode }" @click="pickMode(m.value)">
@@ -313,7 +314,7 @@ function override(): void {
           </div>
         </div>
         <div class="popover-anchor">
-          <button class="chip-button" :class="{ auto: chosenAgent === 'auto' }" :title="agent?.description ?? 'o harness escolhe a cada mensagem'" @click="showAgent = !showAgent; showMode = false; showEffort = false; showUsage = false; showPlus = false">
+          <button class="chip-button" :class="{ auto: chosenAgent === 'auto' }" :title="agent?.description ?? 'o harness escolhe a cada mensagem'" @click="alternar('agente')">
             {{ agentChip }}
           </button>
           <div v-if="showAgent" class="popover left">
@@ -334,7 +335,7 @@ function override(): void {
         <span v-if="run?.phase" class="chip">fase {{ run.phase }}</span>
         <span class="spacer"></span>
         <div class="popover-anchor">
-          <button class="chip-button" @click="showEffort = !showEffort; showUsage = false; showMode = false">Esforco {{ effortLabel }}</button>
+          <button class="chip-button" @click="alternar('esforco')">Esforco {{ effortLabel }}</button>
           <div v-if="showEffort" class="popover">
             <div class="popover-title">Esforco de raciocinio</div>
             <div class="effort-scale">
@@ -343,16 +344,16 @@ function override(): void {
                 :key="l.value"
                 class="effort-step"
                 :class="{ active: (reasoning || agent?.reasoning) === l.value }"
-                @click="reasoning = l.value; showEffort = false"
+                @click="reasoning = l.value; fechar('esforco')"
               >
                 {{ l.label }}
               </button>
             </div>
-            <button class="link" @click="reasoning = ''; showEffort = false">Usar o padrao do perfil ({{ agent?.reasoning ?? 'medium' }})</button>
+            <button class="link" @click="reasoning = ''; fechar('esforco')">Usar o padrao do perfil ({{ agent?.reasoning ?? 'medium' }})</button>
           </div>
         </div>
         <div class="popover-anchor">
-          <button class="chip-button" @click="showUsage = !showUsage; showEffort = false; showMode = false">
+          <button class="chip-button" @click="alternar('uso')">
             <span class="ring" :style="{ '--pct': contextPct + '%' }"></span>
             {{ contextPct }}% contexto
           </button>

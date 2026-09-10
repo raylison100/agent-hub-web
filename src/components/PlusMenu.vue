@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { client } from '../daemon/client'
 import { isDesktop, pickFolder, toDaemonPath } from '../daemon/native-dialog'
 
@@ -22,6 +22,7 @@ type View = 'root' | 'files' | 'commands' | 'connectors' | 'plugins'
 const view = ref<View>('root')
 const error = ref('')
 const path = ref('.')
+const soPastas = ref(false)
 const entries = ref<{ name: string; dir: boolean }[]>([])
 const skills = ref<{ name: string; description: string; source: string }[]>([])
 const prompts = ref<{ server: string; name: string; description?: string }[]>([])
@@ -69,6 +70,8 @@ async function attachTree(): Promise<void> {
   }
 }
 
+const listados = computed(() => (soPastas.value ? entries.value.filter((e) => e.dir) : entries.value))
+
 function pickLocal(): void {
   fileInput.value?.click()
 }
@@ -77,6 +80,7 @@ function pickLocal(): void {
 async function adicionarPasta(): Promise<void> {
   error.value = ''
   if (!isDesktop()) {
+    soPastas.value = true
     await browse('.')
     view.value = 'files'
     return
@@ -97,6 +101,20 @@ async function onLocalFiles(e: Event): Promise<void> {
   const files = (e.target as HTMLInputElement).files
   if (!files) return
   for (const f of files) {
+    if (f.type.startsWith('image/')) {
+      if (f.size > 5_000_000) {
+        error.value = `${f.name}: imagem acima de 5 MB`
+        continue
+      }
+      const data = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onerror = () => reject(new Error('falha ao ler a imagem'))
+        reader.onload = () => resolve(String(reader.result).split(',')[1] ?? '')
+        reader.readAsDataURL(f)
+      })
+      emit('image', { mediaType: f.type, data, name: f.name })
+      continue
+    }
     if (f.size > 2_000_000) {
       error.value = `${f.name}: acima de 2 MB`
       continue
@@ -181,13 +199,13 @@ onUnmounted(() => {
 
     <template v-else-if="view === 'files'">
       <div class="menu-head">
-        <button class="link" @click="view = 'root'">&lt; voltar</button>
+        <button class="link" @click="view = 'root'; soPastas = false">&lt; voltar</button>
         <code>{{ path }}</code>
         <button class="link" @click="attachTree">anexar esta pasta</button>
       </div>
       <div class="menu-list">
         <button v-if="path !== '.'" class="menu-item" @click="up"><span>..</span></button>
-        <button v-for="e in entries" :key="e.name" class="menu-item" @click="e.dir ? browse(path === '.' ? e.name : `${path}/${e.name}`) : attachFile(e.name)">
+        <button v-for="e in listados" :key="e.name" class="menu-item" @click="e.dir ? browse(path === '.' ? e.name : `${path}/${e.name}`) : attachFile(e.name)">
           <span>{{ e.name }}{{ e.dir ? '/' : '' }}</span>
           <span class="menu-key">{{ e.dir ? '>' : 'anexar' }}</span>
         </button>

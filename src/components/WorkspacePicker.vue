@@ -1,18 +1,21 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { client } from '../daemon/client'
-import { isDesktop, pickFolder, toDaemonPath, toNativePath } from '../daemon/native-dialog'
+import { aberto, alternar, fechar } from '../popover'
+import { isDesktop, nomeDePastaEscolhida, pickFolder, temSeletorDePasta, toDaemonPath, toNativePath } from '../daemon/native-dialog'
 
 const props = defineProps<{ modelValue: string }>()
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 
-const open = ref(false)
+const open = aberto('workspace')
 const path = ref<string | null>(null)
 const roots = ref<string[]>([])
 const dirs = ref<string[]>([])
 const error = ref('')
 const wslDistro = ref<string | null>(null)
 const desktop = isDesktop()
+const navegadorComSeletor = !desktop && temSeletorDePasta()
+const candidatos = ref<string[]>([])
 
 const recentsKey = 'agent-hub.recent-workspaces'
 
@@ -39,7 +42,7 @@ function remember(dir: string): void {
 }
 
 async function toggle(): Promise<void> {
-  open.value = !open.value
+  alternar('workspace')
   if (!open.value) return
   error.value = ''
   path.value = null
@@ -92,10 +95,32 @@ async function browseNative(): Promise<void> {
   }
 }
 
+/** No navegador: abre o seletor do sistema, pega o nome da pasta e pede ao daemon o caminho dentro das raizes. */
+async function browseNoNavegador(): Promise<void> {
+  error.value = ''
+  candidatos.value = []
+  const nome = await nomeDePastaEscolhida()
+  if (!nome) return
+  try {
+    const res = await client.request({ type: 'workspace.find', name: nome }, 'workspace.find', 30000)
+    if (res.paths.length === 1) {
+      choose(res.paths[0]!)
+      return
+    }
+    if (res.paths.length === 0) {
+      error.value = `A pasta "${nome}" nao esta dentro das raizes permitidas. Ajuste workspaces no config.toml.`
+      return
+    }
+    candidatos.value = res.paths
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : String(err)
+  }
+}
+
 function choose(dir: string): void {
   emit('update:modelValue', dir)
   remember(dir)
-  open.value = false
+  fechar('workspace')
 }
 </script>
 
@@ -104,6 +129,14 @@ function choose(dir: string): void {
     <button class="chip" :title="modelValue || 'Escolher a pasta da sessao'" @click="toggle">{{ label }}</button>
     <div v-if="open" class="popover left ws-panel">
       <button v-if="desktop" class="primary small ws-browse" @click="browseNative">Procurar no computador...</button>
+      <button v-else-if="navegadorComSeletor" class="primary small ws-browse" @click="browseNoNavegador">Procurar no computador...</button>
+      <template v-if="candidatos.length">
+        <div class="ws-section">Qual delas?</div>
+        <button v-for="c in candidatos" :key="c" class="ws-row" @click="choose(c)">
+          <span class="ws-name">{{ c.split('/').filter(Boolean).pop() }}</span>
+          <span class="ws-path">{{ c }}</span>
+        </button>
+      </template>
       <template v-if="path === null">
         <div class="popover-title">Pasta da sessao</div>
         <template v-if="recents().length > 0">

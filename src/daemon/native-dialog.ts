@@ -34,3 +34,19 @@ export async function pickFolder(title: string, defaultPath?: string): Promise<s
   const picked = await open({ directory: true, multiple: false, title, defaultPath })
   return typeof picked === 'string' ? picked : null
 }
+
+/** No navegador nao ha dialogo que devolva caminho absoluto, mas o Chromium abre o seletor de pastas e informa o nome. */
+export function temSeletorDePasta(): boolean {
+  return typeof window !== 'undefined' && 'showDirectoryPicker' in window
+}
+
+export async function nomeDePastaEscolhida(): Promise<string | null> {
+  const escolher = (window as unknown as { showDirectoryPicker?: () => Promise<{ name: string }> }).showDirectoryPicker
+  if (!escolher) return null
+  try {
+    const handle = await escolher()
+    return handle.name
+  } catch {
+    return null
+  }
+}

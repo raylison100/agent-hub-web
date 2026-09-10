@@ -2288,3 +2288,37 @@ tfoot td {
   background: var(--accent-soft);
   box-shadow: inset 2px 0 0 var(--accent);
 }
+
+.terminal-pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+
+.terminal-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.terminal-box {
+  flex: 1;
+  min-height: 0;
+  padding: 6px 4px 4px 8px;
+  background: var(--code-bg);
+}
+
+.panel-head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: 8px 10px 4px;
+}
+
+.tabs button .badge {
+  margin-left: 4px;
+}

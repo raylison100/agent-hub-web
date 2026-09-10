@@ -1,6 +1,6 @@
 import type { RelayDevice } from '@agent-hub/core'
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { client, type Status } from '../daemon/client'
 
 const keys = {
@@ -92,5 +92,28 @@ export const useConnection = defineStore('connection', () => {
     client.close()
   }
 
-  return { mode, url, token, accountToken, deviceId, devices, status, detail, device, connect, disconnect }
+  /** Resolve quando a conexao estiver online, ou rejeita no prazo. Usado por telas abertas direto pela URL. */
+  function whenOnline(timeoutMs = 15000): Promise<void> {
+    if (status.value === 'online') return Promise.resolve()
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        stop()
+        reject(new Error('daemon desconectado'))
+      }, timeoutMs)
+      const stop = watch(status, (s) => {
+        if (s === 'online') {
+          clearTimeout(timer)
+          stop()
+          resolve()
+        }
+        if (s === 'error') {
+          clearTimeout(timer)
+          stop()
+          reject(new Error(detail.value || 'falha na conexao'))
+        }
+      })
+    })
+  }
+
+  return { mode, url, token, accountToken, deviceId, devices, status, detail, device, connect, disconnect, whenOnline }
 })

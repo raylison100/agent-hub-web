@@ -4,10 +4,12 @@ import { useRoute } from 'vue-router'
 import Composer from '../components/Composer.vue'
 import Timeline from '../components/Timeline.vue'
 import { client } from '../daemon/client'
+import { useConnection } from '../stores/connection'
 import { useSessions, type Reasoning } from '../stores/sessions'
 
 const props = defineProps<{ id: string }>()
 const sessions = useSessions()
+const connection = useConnection()
 const route = useRoute()
 const error = ref('')
 const scroller = ref<HTMLElement | null>(null)
@@ -25,6 +27,9 @@ watch(items, () => void nextTick(scrollDown), { deep: true })
 async function load(): Promise<void> {
   error.value = ''
   try {
+    await connection.whenOnline()
+    if (!sessions.agents.length) await sessions.loadAgents()
+    if (!sessions.sessions.length) await sessions.refresh()
     await sessions.open(props.id)
     await nextTick(scrollDown)
     const first = route.query.first

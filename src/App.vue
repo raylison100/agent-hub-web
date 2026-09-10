@@ -16,6 +16,49 @@ const sidebarOpen = ref(!estreitoQuery.matches)
 const inSettings = computed(() => route.path.startsWith('/settings'))
 const sidebarFlutuante = computed(() => estreito.value && sidebarOpen.value && !inSettings.value)
 
+const larguras = { barra: 260, painel: 380 }
+const larguraBarra = ref(lerLargura('barra', larguras.barra))
+const larguraPainel = ref(lerLargura('painel', larguras.painel))
+const arrastando = ref<'barra' | 'painel' | null>(null)
+
+function lerLargura(qual: 'barra' | 'painel', padrao: number): number {
+  try {
+    const valor = Number(localStorage.getItem(`agent-hub.largura.${qual}`))
+    return Number.isFinite(valor) && valor > 0 ? valor : padrao
+  } catch {
+    return padrao
+  }
+}
+
+const estiloShell = computed(() => ({
+  '--w-sidebar': `${larguraBarra.value}px`,
+  '--w-panel': `${larguraPainel.value}px`,
+}))
+
+/** Arrasta a divisoria e guarda a largura escolhida, para o painel nao mudar de tamanho sozinho ao trocar de aba. */
+function iniciarArrasto(qual: 'barra' | 'painel', e: PointerEvent): void {
+  arrastando.value = qual
+  const alvo = e.currentTarget as HTMLElement
+  alvo.setPointerCapture(e.pointerId)
+  const mover = (ev: PointerEvent) => {
+    if (qual === 'painel') larguraPainel.value = Math.min(760, Math.max(280, window.innerWidth - ev.clientX))
+    else larguraBarra.value = Math.min(460, Math.max(190, ev.clientX))
+  }
+  const soltar = () => {
+    arrastando.value = null
+    alvo.removeEventListener('pointermove', mover)
+    alvo.removeEventListener('pointerup', soltar)
+    try {
+      localStorage.setItem('agent-hub.largura.barra', String(larguraBarra.value))
+      localStorage.setItem('agent-hub.largura.painel', String(larguraPainel.value))
+    } catch {
+      return
+    }
+  }
+  alvo.addEventListener('pointermove', mover)
+  alvo.addEventListener('pointerup', soltar)
+}
+
 function onLargura(e: MediaQueryListEvent): void {
   estreito.value = e.matches
   sidebarOpen.value = !e.matches
@@ -51,7 +94,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="shell" :class="{ 'no-sidebar': !sidebarOpen || inSettings || estreito, 'no-panel': !panelOpen || route.name !== 'chat' || estreito }">
+  <div class="shell" :style="estiloShell" :class="{ 'no-sidebar': !sidebarOpen || inSettings || estreito, 'no-panel': !panelOpen || route.name !== 'chat' || estreito }">
     <Sidebar v-if="sidebarOpen && !inSettings" :class="{ flutuante: sidebarFlutuante }" @collapse="sidebarOpen = false" />
     <div v-if="sidebarFlutuante" class="sidebar-backdrop" @click="sidebarOpen = false"></div>
     <main class="main">
@@ -65,6 +108,20 @@ onMounted(async () => {
       </header>
       <RouterView />
     </main>
+    <div
+      v-if="panelOpen && route.name === 'chat' && !estreito"
+      class="resizer resizer-panel"
+      :class="{ arrastando: arrastando === 'painel' }"
+      title="Arraste para mudar a largura"
+      @pointerdown.prevent="iniciarArrasto('painel', $event)"
+    ></div>
+    <div
+      v-if="sidebarOpen && !inSettings && !estreito"
+      class="resizer resizer-sidebar"
+      :class="{ arrastando: arrastando === 'barra' }"
+      title="Arraste para mudar a largura"
+      @pointerdown.prevent="iniciarArrasto('barra', $event)"
+    ></div>
     <RightPanel v-if="panelOpen && route.name === 'chat' && !estreito" :session-id="String(route.params.id ?? '')" />
     <div v-if="sessions.approvals.length" class="approval-dock">
       <div v-for="a in sessions.approvals" :key="a.id" class="approval">

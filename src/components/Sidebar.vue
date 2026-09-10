@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { SessionSummary } from '@agent-hub/core'
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { client } from '../daemon/client'
 import { useConnection } from '../stores/connection'
 import { useSessions } from '../stores/sessions'
 import ConfirmDialog from './ConfirmDialog.vue'
@@ -21,6 +22,47 @@ const selecionadas = ref(new Set<string>())
 const ancora = ref<string | null>(null)
 const pendingBulk = ref<'apagar' | 'apagar-tudo' | null>(null)
 const novoGrupo = ref<string | null>(null)
+const menuLista = ref<{ x: number; y: number } | null>(null)
+const menuUsuario = ref<{ x: number; y: number } | null>(null)
+const usuario = ref('')
+
+onMounted(async () => {
+  try {
+    await connection.whenOnline()
+    usuario.value = (await client.request({ type: 'stats.overview', days: 1 }, 'stats.overview', 15000)).stats.user
+  } catch {
+    usuario.value = ''
+  }
+})
+
+const nomeUsuario = computed(() => (usuario.value ? usuario.value.charAt(0).toUpperCase() + usuario.value.slice(1) : 'Voce'))
+
+const itensUsuario = computed<MenuItem[]>(() => [
+  { id: 'settings', label: 'Configuracoes' },
+  { id: 'appearance', label: 'Aparencia' },
+  { id: 'connectors', label: 'Conectores' },
+  { id: 'secrets', label: 'Chaves' },
+  { id: 'sep', label: '', separator: true },
+  { id: 'connection', label: `Conexao: ${connection.status === 'online' ? connection.device : connection.status}` },
+])
+
+function abrirMenuUsuario(e: MouseEvent): void {
+  const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+  menuUsuario.value = { x: r.left, y: Math.max(8, r.top - 8 - 200) }
+}
+
+async function pickUsuario(id: string): Promise<void> {
+  menuUsuario.value = null
+  const rotas: Record<string, string> = {
+    settings: '/settings',
+    appearance: '/settings/aparencia',
+    connectors: '/settings/conectores',
+    secrets: '/settings/chaves',
+    connection: '/settings/conexao',
+  }
+  const destino = rotas[id]
+  if (destino) await router.push(destino)
+}
 
 const visible = computed(() => {
   const q = query.value.trim().toLowerCase()
@@ -73,6 +115,28 @@ const menuItems = computed<MenuItem[]>(() => {
     { id: 'delete', label: 'Apagar', key: 'D', danger: true, disabled: running },
   ]
 })
+
+const itensLista = computed<MenuItem[]>(() => [
+  { id: 'select-all', label: 'Selecionar todas', key: 'A' },
+  { id: 'archived', label: showArchived.value ? 'Ocultar arquivadas' : 'Mostrar arquivadas' },
+  { id: 'sep', label: '', separator: true },
+  { id: 'delete-all', label: 'Apagar todas as conversas', danger: true },
+])
+
+function abrirMenuLista(e: MouseEvent): void {
+  const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+  menuLista.value = { x: r.left, y: r.bottom + 4 }
+}
+
+async function pickLista(id: string): Promise<void> {
+  menuLista.value = null
+  if (id === 'select-all') selecionarTodas()
+  if (id === 'archived') {
+    showArchived.value = !showArchived.value
+    await sessions.refresh(showArchived.value)
+  }
+  if (id === 'delete-all') pendingBulk.value = 'apagar-tudo'
+}
 
 /** Clique com Shift seleciona o intervalo, com Ctrl alterna um item, sem modificador abre a sessao. */
 function onClickSessao(e: MouseEvent, s: SessionSummary): void {
@@ -227,6 +291,7 @@ async function commitRename(): Promise<void> {
   <aside class="sidebar">
     <div class="sidebar-top">
       <RouterLink to="/" class="brand">Agent Hub</RouterLink>
+      <button class="icon" title="Mais acoes" @click="abrirMenuLista">...</button>
       <button class="icon" title="Recolher" @click="$emit('collapse')">|<</button>
     </div>
     <RouterLink to="/" class="new-session">+ Novo</RouterLink>
@@ -310,19 +375,14 @@ async function commitRename(): Promise<void> {
       </div>
       <p v-if="!visible.length" class="muted small pad">Nenhuma sessao.</p>
     </div>
-    <label class="archived-toggle">
-      <input v-model="showArchived" type="checkbox" @change="sessions.refresh(showArchived)" />
-      mostrar arquivadas
-    </label>
-    <nav class="sidebar-bottom">
-      <button class="link small" @click="selecionarTodas">Selecionar tudo</button>
-      <button class="link small danger-text" @click="pendingBulk = 'apagar-tudo'">Apagar tudo</button>
-      <RouterLink to="/settings">Configuracoes</RouterLink>
-      <RouterLink to="/connect" class="status" :data-status="connection.status">
-        {{ connection.status === 'online' ? connection.device : connection.status }}
-      </RouterLink>
-    </nav>
+    <button class="user-bar" @click="abrirMenuUsuario">
+      <span class="avatar">{{ nomeUsuario.charAt(0) }}</span>
+      <span class="user-nome">{{ nomeUsuario }}</span>
+      <span class="status-dot" :data-status="connection.status" :title="connection.status === 'online' ? connection.device : connection.status"></span>
+    </button>
     <ContextMenu v-if="menu" :x="menu.x" :y="menu.y" :items="menuItems" @pick="pick" @close="menu = null" />
+    <ContextMenu v-if="menuLista" :x="menuLista.x" :y="menuLista.y" :items="itensLista" @pick="pickLista" @close="menuLista = null" />
+    <ContextMenu v-if="menuUsuario" :x="menuUsuario.x" :y="menuUsuario.y" :items="itensUsuario" @pick="pickUsuario" @close="menuUsuario = null" />
     <ConfirmDialog
       v-if="pendingBulk === 'apagar'"
       :title="`Apagar ${selecionadas.size} conversas?`"

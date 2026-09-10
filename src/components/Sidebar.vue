@@ -66,8 +66,10 @@ function mark(s: SessionSummary): string {
   return ''
 }
 
+/** Abre o menu da sessao. O WebView2 do Windows nao entrega `contextmenu` a pagina, entao o botao direito do mouse tambem dispara. */
 function openMenu(e: MouseEvent, session: SessionSummary): void {
   e.preventDefault()
+  e.stopPropagation()
   menu.value = { x: e.clientX, y: e.clientY, session }
 }
 
@@ -137,7 +139,7 @@ async function commitRename(): Promise<void> {
             @keydown.esc.prevent="renaming = null"
             @blur="commitRename"
           />
-          <RouterLink v-else :to="{ name: 'chat', params: { id: s.id } }" class="session-link" :class="{ active: isActive(s.id) }" :title="`${s.agent} em ${s.workspace}`" @contextmenu="openMenu($event, s)">
+          <RouterLink v-else :to="{ name: 'chat', params: { id: s.id } }" class="session-link" :class="{ active: isActive(s.id) }" :title="`${s.agent} em ${s.workspace}`" @contextmenu="openMenu($event, s)" @mouseup.right="openMenu($event, s)">
             <span class="dot" :data-mark="mark(s)"></span>
             <span class="session-title">{{ s.title }}</span>
             <span class="session-cost">{{ s.costUsd.toFixed(2) }}</span>
@@ -163,7 +165,7 @@ async function commitRename(): Promise<void> {
             class="session-link"
             :class="{ active: isActive(s.id), archived: s.archived }"
             :title="`${s.agent} em ${s.workspace}`"
-            @contextmenu="openMenu($event, s)"
+            @contextmenu="openMenu($event, s)" @mouseup.right="openMenu($event, s)"
           >
             <span class="dot" :data-mark="mark(s)"></span>
             <span class="session-title">{{ s.title }}</span>

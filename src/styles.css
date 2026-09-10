@@ -1555,3 +1555,8 @@ tfoot td {
 .ws-manual {
   width: 100%;
 }
+
+.ws-browse {
+  align-self: stretch;
+  margin-bottom: 6px;
+}

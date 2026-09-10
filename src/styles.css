@@ -883,6 +883,65 @@ h1 {
   min-width: 340px;
 }
 
+.plus-menu {
+  min-width: 360px;
+  max-width: 480px;
+  padding: 6px;
+}
+
+.menu-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px 6px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+
+.menu-head code {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menu-list {
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.menu-item.static {
+  cursor: default;
+}
+
+.chip-button.plus {
+  font-weight: 700;
+  padding: 3px 11px;
+}
+
+.attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 6px 6px;
+}
+
+.chip.attachment {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 320px;
+}
+
+.chip-x {
+  border: 0;
+  background: transparent;
+  padding: 0 2px;
+  color: var(--muted);
+  font-family: var(--mono);
+  line-height: 1;
+}
+
 .mode-button[data-mode='auto_approve'] {
   border-color: var(--accent);
 }

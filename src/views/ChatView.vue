@@ -56,8 +56,13 @@ async function send(value: string, reasoning: Reasoning | undefined, mode?: RunM
   }
 }
 
-/** Atalhos MCP: `/servidor:prompt chave=valor` vira o texto do prompt; `/anexar servidor uri` anexa o recurso ao fim da mensagem. */
+/** Atalhos: `/skill texto` prefixa a skill; `/servidor:prompt chave=valor` vira o prompt MCP; `/anexar servidor uri` anexa o recurso. */
 async function expand(value: string): Promise<string> {
+  const skill = /^\/([a-z0-9][a-z0-9:_-]*)\s*([\s\S]*)$/i.exec(value)
+  if (skill && !skill[1]!.includes(':') && skill[1] !== 'anexar') {
+    const res = await client.request({ type: 'skill.get', name: skill[1]! }, 'skill.get').catch(() => null)
+    if (res) return `${skill[2]!.trim() || 'Aplique estas instrucoes ao contexto atual.'}\n\n<skill name="${res.name}">\n${res.body}\n</skill>`
+  }
   const prompt = /^\/([a-z0-9_-]+):([a-z0-9_.-]+)\s*(.*)$/is.exec(value)
   if (prompt) {
     const args: Record<string, string> = {}

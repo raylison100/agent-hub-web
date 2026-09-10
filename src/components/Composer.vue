@@ -2,6 +2,25 @@
 import type { AgentSummary, RunMode, SessionSummary } from '@agent-hub/core'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useSessions, type Reasoning, type RunState } from '../stores/sessions'
+import PlusMenu, { type Attachment } from './PlusMenu.vue'
+
+const showPlus = ref(false)
+const attachments = ref<Attachment[]>([])
+const textarea = ref<HTMLTextAreaElement | null>(null)
+
+function insert(snippet: string): void {
+  text.value = text.value ? `${text.value.replace(/\s*$/, '')} ${snippet}` : snippet
+  showPlus.value = false
+  textarea.value?.focus()
+}
+
+function addAttachment(a: Attachment): void {
+  attachments.value.push(a)
+}
+
+function removeAttachment(i: number): void {
+  attachments.value.splice(i, 1)
+}
 
 const props = defineProps<{
   session: SessionSummary | undefined
@@ -111,9 +130,12 @@ function compact(n: number): string {
 
 function submit(): void {
   const value = text.value.trim()
-  if (!value || props.running) return
+  if ((!value && attachments.value.length === 0) || props.running) return
+  const blocks = attachments.value.map((a) => a.text)
+  const full = [value || 'Considere os anexos.', ...blocks].join('\n\n')
   text.value = ''
-  emit('send', value, reasoning.value || undefined, mode.value)
+  attachments.value = []
+  emit('send', full, reasoning.value || undefined, mode.value)
 }
 
 function onKey(e: KeyboardEvent): void {
@@ -137,13 +159,24 @@ function override(): void {
       <button @click="override">Subir limite e continuar</button>
     </div>
     <div class="composer-box">
+      <div v-if="attachments.length" class="attachments">
+        <span v-for="(a, i) in attachments" :key="i" class="chip attachment" :title="a.text.slice(0, 200)">
+          {{ a.label }}
+          <button class="chip-x" type="button" @click="removeAttachment(i)">x</button>
+        </span>
+      </div>
       <textarea
+        ref="textarea"
         v-model="text"
         rows="3"
-        placeholder="Mensagem. Enter envia, Shift+Enter quebra linha. Atalhos: /servidor:prompt chave=valor, /anexar servidor uri"
+        placeholder="Mensagem. Enter envia, Shift+Enter quebra linha. Atalhos: /skill, /servidor:prompt chave=valor, /anexar servidor uri"
         @keydown="onKey"
       ></textarea>
       <div class="composer-bar">
+        <div class="popover-anchor">
+          <button class="chip-button plus" title="Anexar, comandos, conectores" @click="showPlus = !showPlus; showMode = false; showEffort = false; showUsage = false">+</button>
+          <PlusMenu v-if="showPlus" :session-id="session?.id ?? ''" :agent="session?.agent" @attach="addAttachment" @insert="insert" @close="showPlus = false" />
+        </div>
         <div class="popover-anchor">
           <button class="chip-button mode-button" :data-mode="mode" @click="showMode = !showMode; showEffort = false; showUsage = false">{{ modeLabel }}</button>
           <div v-if="showMode" class="popover left">
@@ -193,7 +226,7 @@ function override(): void {
           </div>
         </div>
         <button v-if="running" class="ghost" @click="$emit('cancel')">Parar</button>
-        <button class="primary" :disabled="running || !text.trim()" @click="submit">Enviar</button>
+        <button class="primary" :disabled="running || (!text.trim() && !attachments.length)" @click="submit">Enviar</button>
       </div>
     </div>
   </footer>

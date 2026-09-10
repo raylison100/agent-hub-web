@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router'
 import { client } from '../daemon/client'
 import { useConnection } from '../stores/connection'
 import { useSessions } from '../stores/sessions'
+import WorkspacePicker from '../components/WorkspacePicker.vue'
 
 const sessions = useSessions()
 const connection = useConnection()
@@ -13,7 +14,6 @@ const workspace = ref(lastWorkspace())
 const agent = ref('')
 const firstMessage = ref('')
 const error = ref('')
-const editingWorkspace = ref(false)
 const stats = ref<StatsOverview | null>(null)
 const tab = ref<'geral' | 'modelos'>('geral')
 const period = ref<0 | 30 | 7>(0)
@@ -109,15 +109,10 @@ function lastWorkspace(): string {
   }
 }
 
-function workspaceLabel(path: string): string {
-  return path.split('/').filter(Boolean).pop() ?? 'workspace'
-}
-
 async function create(): Promise<void> {
   error.value = ''
   if (!workspace.value.trim()) {
-    editingWorkspace.value = true
-    error.value = 'Informe o workspace da sessao'
+    error.value = 'Escolha a pasta da sessao no seletor'
     return
   }
   try {
@@ -199,18 +194,7 @@ function onKey(e: KeyboardEvent): void {
 
     <div class="home-composer">
       <div class="composer-chips">
-        <button class="chip" title="Workspace da nova sessao" @click="editingWorkspace = !editingWorkspace">
-          {{ workspaceLabel(workspace) || 'workspace' }}
-        </button>
-        <input
-          v-if="editingWorkspace || !workspace"
-          v-model="workspace"
-          class="chip-input"
-          type="text"
-          placeholder="/home/usuario/Projects/meu-projeto"
-          spellcheck="false"
-          @keydown.enter.prevent="editingWorkspace = false"
-        />
+        <WorkspacePicker v-model="workspace" />
         <select v-model="agent" class="chip chip-select" title="Agente da sessao">
           <option value="">Auto</option>
           <option v-for="a in sessions.agents" :key="a.name" :value="a.name">{{ a.name }}</option>

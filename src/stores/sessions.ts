@@ -123,8 +123,24 @@ export const useSessions = defineStore('sessions', () => {
     sessions.value = list.sessions
   }
 
-  async function update(sessionId: string, patch: { title?: string; pinned?: boolean; archived?: boolean; agent?: string; mode?: RunMode }): Promise<void> {
+  async function update(sessionId: string, patch: { title?: string; pinned?: boolean; archived?: boolean; agent?: string; mode?: RunMode; group?: string | null }): Promise<void> {
     client.send({ type: 'session.update', session_id: sessionId, ...patch })
+  }
+
+  /** Aplica o mesmo ajuste a varias sessoes de uma vez. */
+  function updateMany(ids: string[], patch: { pinned?: boolean; archived?: boolean; group?: string | null }): void {
+    client.send({ type: 'session.update_many', session_ids: ids, ...patch })
+  }
+
+  /** Apaga varias sessoes e ja tira todas da lista local. */
+  function removeMany(ids: string[]): void {
+    client.send({ type: 'session.delete_many', session_ids: ids })
+    const alvo = new Set(ids)
+    sessions.value = sessions.value.filter((s) => !alvo.has(s.id))
+    for (const id of ids) {
+      timelines.delete(id)
+      runs.delete(id)
+    }
   }
 
   async function remove(sessionId: string): Promise<void> {
@@ -262,6 +278,15 @@ export const useSessions = defineStore('sessions', () => {
     if (frame.type === 'feedback.ok') {
       if (frame.verdict === 'none') feedback.delete(frame.run_id)
       else feedback.set(frame.run_id, frame.verdict)
+      return
+    }
+    if (frame.type === 'session.deleted_many') {
+      const alvo = new Set(frame.session_ids)
+      sessions.value = sessions.value.filter((s) => !alvo.has(s.id))
+      for (const id of frame.session_ids) {
+        timelines.delete(id)
+        runs.delete(id)
+      }
       return
     }
     if (frame.type === 'session.deleted') {
@@ -417,6 +442,8 @@ export const useSessions = defineStore('sessions', () => {
     setFeedback,
     refresh,
     update,
+    updateMany,
+    removeMany,
     remove,
     fork,
     loadAgents,

@@ -2251,3 +2251,40 @@ tfoot td {
     gap: 6px;
   }
 }
+
+.bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 6px 10px;
+  margin: 0 8px 4px;
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+  border-radius: var(--radius-sm);
+}
+
+.bulk-bar.coluna {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.bulk-count {
+  font-size: var(--fs-small);
+  margin-right: auto;
+}
+
+.bulk-grupos {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.danger-text {
+  color: var(--error);
+}
+
+.session-link.selecionada {
+  background: var(--accent-soft);
+  box-shadow: inset 2px 0 0 var(--accent);
+}

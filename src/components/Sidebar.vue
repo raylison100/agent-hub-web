@@ -66,6 +66,7 @@ function mark(s: SessionSummary): string {
       <RouterLink to="/costs">Custos</RouterLink>
       <RouterLink to="/agents">Agentes</RouterLink>
       <RouterLink to="/automations">Automacoes</RouterLink>
+      <RouterLink to="/secrets">Chaves</RouterLink>
       <RouterLink to="/connect" class="status" :data-status="connection.status">
         {{ connection.status === 'online' ? connection.device : connection.status }}
       </RouterLink>

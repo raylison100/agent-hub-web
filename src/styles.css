@@ -993,6 +993,18 @@ tfoot td {
   font-weight: 600;
 }
 
+.secret-form {
+  display: grid;
+  grid-template-columns: 1fr 2fr auto;
+  gap: 10px;
+  align-items: end;
+  margin-bottom: 16px;
+}
+
+.secret-form label {
+  margin: 0;
+}
+
 .push {
   margin-top: 16px;
   padding-top: 12px;

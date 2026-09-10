@@ -8,7 +8,7 @@ export interface Attachment {
   text: string
 }
 
-const props = defineProps<{ sessionId: string; agent: string | undefined }>()
+const props = defineProps<{ sessionId?: string; workspace?: string; agent: string | undefined }>()
 const emit = defineEmits<{ attach: [a: Attachment]; insert: [text: string]; close: [] }>()
 
 type View = 'root' | 'files' | 'commands' | 'connectors' | 'plugins'
@@ -26,7 +26,7 @@ const fileInput = ref<HTMLInputElement | null>(null)
 async function browse(next: string): Promise<void> {
   error.value = ''
   try {
-    const res = await client.request({ type: 'fs.list', session_id: props.sessionId, path: next }, 'fs.list')
+    const res = await client.request({ type: 'fs.list', session_id: props.sessionId, workspace: props.workspace, path: next }, 'fs.list')
     path.value = res.path
     entries.value = res.entries
     view.value = 'files'
@@ -44,7 +44,7 @@ function up(): void {
 async function attachFile(name: string): Promise<void> {
   const target = path.value === '.' ? name : `${path.value}/${name}`
   try {
-    const res = await client.request({ type: 'fs.read', session_id: props.sessionId, path: target }, 'fs.read', 30000)
+    const res = await client.request({ type: 'fs.read', session_id: props.sessionId, workspace: props.workspace, path: target }, 'fs.read', 30000)
     emit('attach', { kind: 'file', label: res.path, text: `<arquivo path="${res.path}"${res.truncated ? ' truncado="true"' : ''}>\n${res.text}\n</arquivo>` })
     emit('close')
   } catch (err) {
@@ -54,7 +54,7 @@ async function attachFile(name: string): Promise<void> {
 
 async function attachTree(): Promise<void> {
   try {
-    const res = await client.request({ type: 'fs.tree', session_id: props.sessionId, path: path.value, depth: 3 }, 'fs.tree', 30000)
+    const res = await client.request({ type: 'fs.tree', session_id: props.sessionId, workspace: props.workspace, path: path.value, depth: 3 }, 'fs.tree', 30000)
     emit('attach', { kind: 'tree', label: `pasta ${res.path}`, text: `<pasta path="${res.path}">\n${res.text}\n</pasta>` })
     emit('close')
   } catch (err) {

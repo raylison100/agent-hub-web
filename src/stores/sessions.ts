@@ -156,7 +156,9 @@ export const useSessions = defineStore('sessions', () => {
 
   async function open(sessionId: string): Promise<void> {
     const res = await client.request({ type: 'session.get', session_id: sessionId }, 'session.get')
-    timelines.set(sessionId, withChildren(fromMessages(res.messages), res.children ?? []))
+    const live = runs.get(sessionId)
+    const keepLocal = live !== undefined && !live.finished && (timelines.get(sessionId)?.length ?? 0) > 0
+    if (!keepLocal) timelines.set(sessionId, withChildren(fromMessages(res.messages), res.children ?? []))
     if (!terminal.has(sessionId)) terminal.set(sessionId, [])
     void loadFeedback(sessionId)
     const since = lastSeq.get(sessionId)

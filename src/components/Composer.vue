@@ -3,6 +3,7 @@ import type { AgentSummary, RunMode, SessionSummary } from '@agent-hub/core'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useSessions, type Reasoning, type RunState } from '../stores/sessions'
 import PlusMenu, { type Attachment } from './PlusMenu.vue'
+import WorkspacePicker from './WorkspacePicker.vue'
 
 const showPlus = ref(false)
 const attachments = ref<Attachment[]>([])
@@ -28,8 +29,16 @@ const props = defineProps<{
   run: RunState | undefined
   running: boolean
   error: string
+  workspace?: string
 }>()
-const emit = defineEmits<{ send: [text: string, reasoning: Reasoning | undefined, mode: RunMode, agent: string | undefined, improve: boolean]; cancel: []; override: [limit: number] }>()
+const emit = defineEmits<{
+  send: [text: string, reasoning: Reasoning | undefined, mode: RunMode, agent: string | undefined, improve: boolean]
+  cancel: []
+  override: [limit: number]
+  'update:workspace': [value: string]
+}>()
+
+const pendingAgent = ref('')
 
 const improveKey = 'agent-hub.improve'
 const improve = ref(readImprove())
@@ -55,14 +64,22 @@ const showAgent = ref(false)
 
 function pickAgent(name: string): void {
   showAgent.value = false
-  void sessions.update(props.session?.id ?? '', { agent: name })
+  if (!props.session) {
+    pendingAgent.value = name === autoAgent ? '' : name
+    return
+  }
+  void sessions.update(props.session.id, { agent: name })
 }
 
+const autoAgent = 'auto'
+
+const chosenAgent = computed(() => (props.session ? props.session.agent : pendingAgent.value || autoAgent))
+
 const agentChip = computed(() => {
-  const s = props.session
-  if (!s) return ''
-  if (s.agent === 'auto') return props.run?.model ? `Auto: ${props.run.model}` : 'Auto'
-  return `${props.agent?.provider ?? ''}/${props.agent?.model ?? s.agent}`
+  const name = chosenAgent.value
+  if (name === autoAgent) return props.run?.model ? `Auto: ${props.run.model}` : 'Auto'
+  const profile = props.agent ?? sessions.agents.find((a) => a.name === name)
+  return profile ? `${profile.provider}/${profile.model}` : name
 })
 
 const sessions = useSessions()
@@ -84,9 +101,9 @@ const modeKey = 'agent-hub.mode.run'
 const mode = ref<RunMode>(props.session?.mode ?? storedMode())
 
 watch(
-  () => props.session?.id,
-  () => {
-    if (props.session?.mode) mode.value = props.session.mode
+  () => props.session?.mode,
+  (value) => {
+    if (value) mode.value = value
   },
 )
 
@@ -177,7 +194,7 @@ function submit(): void {
   const full = [value || 'Considere os anexos.', ...blocks].join('\n\n')
   text.value = ''
   attachments.value = []
-  emit('send', full, reasoning.value || undefined, mode.value, undefined, improve.value)
+  emit('send', full, reasoning.value || undefined, mode.value, props.session ? undefined : pendingAgent.value || undefined, improve.value)
 }
 
 function onKey(e: KeyboardEvent): void {
@@ -215,9 +232,18 @@ function override(): void {
         @keydown="onKey"
       ></textarea>
       <div class="composer-bar">
+        <WorkspacePicker v-if="!session" :model-value="workspace ?? ''" @update:model-value="(v: string) => emit('update:workspace', v)" />
         <div class="popover-anchor">
-          <button class="chip-button plus" title="Anexar, comandos, conectores" @click="showPlus = !showPlus; showMode = false; showEffort = false; showUsage = false">+</button>
-          <PlusMenu v-if="showPlus" :session-id="session?.id ?? ''" :agent="session?.agent" @attach="addAttachment" @insert="insert" @close="showPlus = false" />
+          <button class="chip-button plus" :disabled="!session && !workspace" title="Anexar, comandos, conectores" @click="showPlus = !showPlus; showMode = false; showEffort = false; showUsage = false">+</button>
+          <PlusMenu
+            v-if="showPlus"
+            :session-id="session?.id"
+            :workspace="session ? undefined : workspace"
+            :agent="session?.agent ?? (pendingAgent || undefined)"
+            @attach="addAttachment"
+            @insert="insert"
+            @close="showPlus = false"
+          />
         </div>
         <div class="popover-anchor">
           <button class="chip-button mode-button" :data-mode="mode" @click="showMode = !showMode; showEffort = false; showUsage = false">{{ modeLabel }}</button>
@@ -231,16 +257,16 @@ function override(): void {
           </div>
         </div>
         <div class="popover-anchor">
-          <button class="chip-button" :class="{ auto: session?.agent === 'auto' }" :title="agent?.description ?? 'o harness escolhe a cada mensagem'" @click="showAgent = !showAgent; showMode = false; showEffort = false; showUsage = false; showPlus = false">
+          <button class="chip-button" :class="{ auto: chosenAgent === 'auto' }" :title="agent?.description ?? 'o harness escolhe a cada mensagem'" @click="showAgent = !showAgent; showMode = false; showEffort = false; showUsage = false; showPlus = false">
             {{ agentChip }}
           </button>
           <div v-if="showAgent" class="popover left">
             <div class="popover-title">Agente desta sessao</div>
-            <button class="mode-option" :class="{ active: session?.agent === 'auto' }" @click="pickAgent('auto')">
+            <button class="mode-option" :class="{ active: chosenAgent === 'auto' }" @click="pickAgent('auto')">
               <span class="mode-name">Auto</span>
               <span class="mode-detail">O harness escolhe a cada mensagem por regra, classificador ou padrao</span>
             </button>
-            <button v-for="a in sessions.agents" :key="a.name" class="mode-option" :class="{ active: session?.agent === a.name }" @click="pickAgent(a.name)">
+            <button v-for="a in sessions.agents" :key="a.name" class="mode-option" :class="{ active: chosenAgent === a.name }" @click="pickAgent(a.name)">
               <span class="mode-name">{{ a.name }}</span>
               <span class="mode-detail">{{ a.provider }}/{{ a.model }}, {{ a.description }}</span>
             </button>

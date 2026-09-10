@@ -1377,27 +1377,14 @@ tfoot td {
 }
 
 .home-composer {
-  width: min(760px, calc(100% - 48px));
+  width: min(860px, calc(100% - 48px));
   margin: 0 auto;
   padding: 8px 0 18px;
 }
 
-.composer-chips {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  margin-bottom: 8px;
-  flex-wrap: wrap;
-}
-
-.composer-chips .chip {
-  background: var(--panel, #17181c);
-  border: 1px solid var(--border, #2a2c33);
-  color: var(--text, #e8e9ec);
-  border-radius: 8px;
-  font-size: 12px;
-  padding: 4px 10px;
-  cursor: pointer;
+.composer-bar .chip-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .chip-select {
@@ -1413,36 +1400,6 @@ tfoot td {
   font-size: 12px;
   padding: 4px 10px;
   color: var(--text, #e8e9ec);
-}
-
-.home-composer .composer-box {
-  display: flex;
-  gap: 8px;
-  align-items: flex-end;
-  background: var(--panel, #17181c);
-  border: 1px solid var(--border, #2a2c33);
-  border-radius: 12px;
-  padding: 10px 12px;
-}
-
-.home-composer .composer-box textarea {
-  flex: 1;
-  background: transparent;
-  border: none;
-  resize: none;
-  color: var(--text, #e8e9ec);
-  font-size: 14px;
-  outline: none;
-}
-
-.home-composer .composer-box .send {
-  border: none;
-  border-radius: 8px;
-  background: var(--accent, #e07a4f);
-  color: #fff;
-  font-size: 12px;
-  padding: 6px 12px;
-  cursor: pointer;
 }
 
 .feedback-row {

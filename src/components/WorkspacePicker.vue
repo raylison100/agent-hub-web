@@ -10,7 +10,6 @@ const open = ref(false)
 const path = ref<string | null>(null)
 const roots = ref<string[]>([])
 const dirs = ref<string[]>([])
-const manual = ref(false)
 const error = ref('')
 const wslDistro = ref<string | null>(null)
 const desktop = isDesktop()
@@ -134,17 +133,6 @@ function choose(dir: string): void {
         </div>
       </template>
       <p v-if="error" class="error small">{{ error }}</p>
-      <button class="link" @click="manual = !manual">{{ manual ? 'Ocultar campo de caminho' : 'Digitar caminho manualmente' }}</button>
-      <input
-        v-if="manual"
-        class="chip-input ws-manual"
-        :value="modelValue"
-        type="text"
-        placeholder="/home/usuario/Projects/meu-projeto"
-        spellcheck="false"
-        @change="emit('update:modelValue', ($event.target as HTMLInputElement).value)"
-        @keydown.enter.prevent="open = false"
-      />
     </div>
   </div>
 </template>

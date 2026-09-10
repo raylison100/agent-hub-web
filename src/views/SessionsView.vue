@@ -1,19 +1,18 @@
 <script setup lang="ts">
-import type { StatsOverview } from '@agent-hub/core'
+import type { RunMode, StatsOverview } from '@agent-hub/core'
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import Composer from '../components/Composer.vue'
 import { client } from '../daemon/client'
 import { useConnection } from '../stores/connection'
-import { useSessions } from '../stores/sessions'
-import WorkspacePicker from '../components/WorkspacePicker.vue'
+import { useSessions, type Reasoning } from '../stores/sessions'
 
 const sessions = useSessions()
 const connection = useConnection()
 const router = useRouter()
 const workspace = ref(lastWorkspace())
-const agent = ref('')
-const firstMessage = ref('')
 const error = ref('')
+const creating = ref(false)
 const stats = ref<StatsOverview | null>(null)
 const tab = ref<'geral' | 'modelos'>('geral')
 const period = ref<0 | 30 | 7>(0)
@@ -22,6 +21,7 @@ const bookTokens = 103_000
 
 onMounted(async () => {
   await connection.whenOnline()
+  await sessions.loadAgents()
   await loadStats()
 })
 
@@ -109,29 +109,27 @@ function lastWorkspace(): string {
   }
 }
 
-async function create(): Promise<void> {
+/** Cria a sessao com a pasta e o agente escolhidos no composer e ja dispara a primeira mensagem. */
+async function send(text: string, reasoning: Reasoning | undefined, mode: RunMode, agent: string | undefined, improve: boolean): Promise<void> {
   error.value = ''
   if (!workspace.value.trim()) {
     error.value = 'Escolha a pasta da sessao no seletor'
     return
   }
+  creating.value = true
   try {
-    const s = await sessions.create(workspace.value, agent.value || undefined, firstMessage.value || undefined)
+    const session = await sessions.create(workspace.value, agent, text)
     try {
       localStorage.setItem('agent-hub.last-workspace', workspace.value)
     } catch {
       void 0
     }
-    await router.push({ name: 'chat', params: { id: s.id }, query: firstMessage.value ? { first: firstMessage.value } : {} })
+    await sessions.start(session.id, text, reasoning, mode, undefined, improve)
+    await router.push({ name: 'chat', params: { id: session.id } })
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err)
-  }
-}
-
-function onKey(e: KeyboardEvent): void {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault()
-    void create()
+  } finally {
+    creating.value = false
   }
 }
 </script>
@@ -192,24 +190,16 @@ function onKey(e: KeyboardEvent): void {
       </div>
     </div>
 
-    <div class="home-composer">
-      <div class="composer-chips">
-        <WorkspacePicker v-model="workspace" />
-        <select v-model="agent" class="chip chip-select" title="Agente da sessao">
-          <option value="">Auto</option>
-          <option v-for="a in sessions.agents" :key="a.name" :value="a.name">{{ a.name }}</option>
-        </select>
-      </div>
-      <div class="composer-box">
-        <textarea
-          v-model="firstMessage"
-          rows="2"
-          placeholder="Descreva uma tarefa ou faca uma pergunta"
-          @keydown="onKey"
-        ></textarea>
-        <button class="send" title="Criar sessao" @click="create">Enviar</button>
-      </div>
-      <p v-if="error" class="error small">{{ error }}</p>
-    </div>
+    <Composer
+      class="home-composer"
+      :session="undefined"
+      :agent="undefined"
+      :run="undefined"
+      :running="creating"
+      :error="error"
+      :workspace="workspace"
+      @update:workspace="(v: string) => (workspace = v)"
+      @send="send"
+    />
   </section>
 </template>

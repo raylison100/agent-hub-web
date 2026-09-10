@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import RightPanel from './components/RightPanel.vue'
 import Sidebar from './components/Sidebar.vue'
@@ -11,6 +11,7 @@ const sessions = useSessions()
 const router = useRouter()
 const route = useRoute()
 const sidebarOpen = ref(true)
+const inSettings = computed(() => route.path.startsWith('/settings'))
 const panelOpen = ref(true)
 
 onMounted(async () => {
@@ -32,10 +33,10 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="shell" :class="{ 'no-sidebar': !sidebarOpen, 'no-panel': !panelOpen || route.name !== 'chat' }">
-    <Sidebar v-if="sidebarOpen" @collapse="sidebarOpen = false" />
+  <div class="shell" :class="{ 'no-sidebar': !sidebarOpen || inSettings, 'no-panel': !panelOpen || route.name !== 'chat' }">
+    <Sidebar v-if="sidebarOpen && !inSettings" @collapse="sidebarOpen = false" />
     <main class="main">
-      <header class="topbar">
+      <header v-if="!inSettings" class="topbar">
         <button v-if="!sidebarOpen" class="icon" title="Mostrar barra lateral" @click="sidebarOpen = true">|||</button>
         <RouterView name="header" />
         <span class="spacer"></span>

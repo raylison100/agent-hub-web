@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import { client } from '../daemon/client'
 import { useConnection } from '../stores/connection'
+import { useSessions } from '../stores/sessions'
 
 interface Server {
   name: string
@@ -14,9 +15,11 @@ interface Server {
   url: string | null
   tools: number
   error: string | null
+  agents: string[]
 }
 
 const connection = useConnection()
+const sessions = useSessions()
 const servers = ref<Server[]>([])
 const selected = ref<string | null>(null)
 const paste = ref('')
@@ -40,6 +43,7 @@ const current = computed(() => servers.value.find((s) => s.name === selected.val
 
 onMounted(async () => {
   await connection.whenOnline()
+  await sessions.loadAgents()
   await load()
 })
 
@@ -109,6 +113,14 @@ async function conectar(s: Server): Promise<void> {
   })
 }
 
+/** Liga ou desliga o servidor para um agente, editando a lista tools.mcp do perfil. */
+async function alternarAgente(s: Server, agente: string): Promise<void> {
+  const agentes = s.agents.includes(agente) ? s.agents.filter((a) => a !== agente) : [...s.agents, agente]
+  await run(async () => {
+    await client.request({ type: 'mcp.agents', name: s.name, agents: agentes }, 'mcp.agents', 30000)
+  })
+}
+
 async function remover(): Promise<void> {
   const name = pendingRemove.value
   pendingRemove.value = null
@@ -142,7 +154,7 @@ async function remover(): Promise<void> {
     </div>
 
     <p v-if="info" class="muted small">{{ info }}</p>
-    <p v-if="secrets.length" class="warn small">Cadastre em <RouterLink to="/secrets">Chaves</RouterLink>: {{ secrets.join(', ') }}</p>
+    <p v-if="secrets.length" class="warn small">Cadastre em <RouterLink to="/settings/chaves">Chaves</RouterLink>: {{ secrets.join(', ') }}</p>
     <p v-if="error" class="error small">{{ error }}</p>
 
     <div v-if="servers.length" class="master-detail">
@@ -179,6 +191,21 @@ async function remover(): Promise<void> {
           <h3>Argumentos</h3>
           <p class="mono small break">{{ current.args?.join(' ') || '-' }}</p>
         </template>
+
+        <h3>Agentes que usam</h3>
+        <div class="agent-chips">
+          <button
+            v-for="a in sessions.agents"
+            :key="a.name"
+            class="chip-button"
+            :class="{ auto: current.agents?.includes(a.name) }"
+            :disabled="busy"
+            @click="alternarAgente(current, a.name)"
+          >
+            {{ a.name }}
+          </button>
+        </div>
+        <p v-if="!current.agents?.length" class="warn small">Nenhum agente usa este conector, entao os modelos nao veem as ferramentas dele.</p>
 
         <h3>Ferramentas</h3>
         <p class="small">{{ current.connected ? `${current.tools} disponiveis` : 'conecte para listar' }}</p>

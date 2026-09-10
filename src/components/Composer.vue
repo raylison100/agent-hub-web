@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { AgentSummary, RunMode, SessionSummary } from '@agent-hub/core'
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useSessions, type Reasoning, type RunState } from '../stores/sessions'
 import PlusMenu, { type Attachment } from './PlusMenu.vue'
 
@@ -81,7 +81,14 @@ const modes: { value: RunMode; label: string; detail: string }[] = [
 ]
 
 const modeKey = 'agent-hub.mode.run'
-const mode = ref<RunMode>(storedMode())
+const mode = ref<RunMode>(props.session?.mode ?? storedMode())
+
+watch(
+  () => props.session?.id,
+  () => {
+    if (props.session?.mode) mode.value = props.session.mode
+  },
+)
 
 function storedMode(): RunMode {
   try {
@@ -95,6 +102,7 @@ function storedMode(): RunMode {
 function pickMode(value: RunMode): void {
   mode.value = value
   showMode.value = false
+  if (props.session) void sessions.update(props.session.id, { mode: value })
   try {
     localStorage.setItem(modeKey, value)
   } catch {

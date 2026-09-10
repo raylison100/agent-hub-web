@@ -117,7 +117,7 @@ export const useSessions = defineStore('sessions', () => {
     sessions.value = list.sessions
   }
 
-  async function update(sessionId: string, patch: { title?: string; pinned?: boolean; archived?: boolean; agent?: string }): Promise<void> {
+  async function update(sessionId: string, patch: { title?: string; pinned?: boolean; archived?: boolean; agent?: string; mode?: RunMode }): Promise<void> {
     client.send({ type: 'session.update', session_id: sessionId, ...patch })
   }
 

@@ -291,11 +291,13 @@ async function commitRename(): Promise<void> {
   <aside class="sidebar">
     <div class="sidebar-top">
       <RouterLink to="/" class="brand">Agent Hub</RouterLink>
-      <button class="icon" title="Mais acoes" @click="abrirMenuLista">...</button>
       <button class="icon" title="Recolher" @click="$emit('collapse')">|<</button>
     </div>
     <RouterLink to="/" class="new-session">+ Novo</RouterLink>
-    <input v-model="query" class="search" type="search" placeholder="Buscar sessoes" />
+    <div class="search-row">
+      <input v-model="query" class="search" type="search" placeholder="Buscar sessoes" />
+      <button class="icon" title="Mais acoes da lista" @click="abrirMenuLista">...</button>
+    </div>
     <div v-if="selecionadas.size > 0" class="bulk-bar">
       <div class="bulk-linha">
         <span class="bulk-count">{{ selecionadas.size }} selecionada{{ selecionadas.size > 1 ? 's' : '' }}</span>

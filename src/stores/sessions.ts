@@ -345,7 +345,7 @@ export const useSessions = defineStore('sessions', () => {
       case 'routed':
         run.agent = event.agent
         run.model = event.model
-        t.push({ kind: 'info', text: `Roteado para ${event.agent} (${event.model}) por ${event.by === 'rule' ? 'regra' : event.by === 'classifier' ? 'classificador' : event.by === 'default' ? 'padrao' : event.by}${event.intent ? `, intencao ${event.intent}` : ''}` })
+        t.push({ kind: 'info', text: routedText(event) })
         return
       case 'prompt_improved':
         t.push({ kind: 'improved', by: event.by, original: event.original, improved: event.improved, costUsd: event.costUsd })
@@ -399,6 +399,15 @@ export const useSessions = defineStore('sessions', () => {
     subagents,
   }
 })
+
+function routedText(event: Extract<RunEvent, { type: 'routed' }>): string {
+  const by =
+    event.by === 'rule' ? 'regra' : event.by === 'classifier' ? 'classificador' : event.by === 'score' ? 'pontuacao' : event.by === 'default' ? 'padrao' : event.by
+  const head = `Roteado para ${event.agent} (${event.model}) por ${by}${event.intent ? `, intencao ${event.intent}` : ''}`
+  const top = (event.ranking ?? []).filter((r) => r.excluded === undefined).slice(0, 3)
+  if (top.length === 0) return head
+  return `${head}. Ranking: ${top.map((r) => `${r.agent} ${r.score.toFixed(2)}`).join(', ')}`
+}
 
 function closeLive(t: TimelineItem[]): void {
   const last = t[t.length - 1]

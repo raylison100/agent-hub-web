@@ -16,6 +16,7 @@ interface Server {
   tools: number
   error: string | null
   agents: string[]
+  oauth: 'autorizado' | 'pendente' | null
 }
 
 const connection = useConnection()
@@ -107,6 +108,12 @@ async function alternar(s: Server): Promise<void> {
   })
 }
 
+
+/** Abre o fluxo de OAuth do servidor no navegador; o daemon guarda o token quando o provedor devolve. */
+function autorizar(nome: string): void {
+  const base = typeof window === 'undefined' ? '' : window.location.origin.startsWith('http') ? window.location.origin : 'http://127.0.0.1:47311'
+  window.open(`${base}/oauth/start?server=${encodeURIComponent(nome)}`, '_blank', 'noopener')
+}
 async function conectar(s: Server): Promise<void> {
   await run(async () => {
     await client.request({ type: 'mcp.connect', name: s.name }, 'mcp.saved', 60000)
@@ -179,6 +186,9 @@ async function remover(): Promise<void> {
           <button class="ghost small" :disabled="busy" @click="alternar(current)">{{ current.enabled ? 'Desligar' : 'Ligar' }}</button>
           <button class="ghost small" :disabled="busy || !current.enabled" @click="conectar(current)">Conectar</button>
           <button class="ghost small" :disabled="busy" @click="pendingRemove = current.name">Remover</button>
+          <button v-if="current.oauth" class="ghost small" @click="autorizar(current.name)">
+            {{ current.oauth === 'autorizado' ? 'Autorizar de novo' : 'Autorizar' }}
+          </button>
         </div>
 
         <template v-if="current.url">

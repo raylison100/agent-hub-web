@@ -112,6 +112,21 @@ export const useConnection = defineStore('connection', () => {
     return false
   }
 
+
+  /** Entra com senha num daemon remoto e guarda a credencial que ele devolve, para as proximas conexoes nao pedirem nada. */
+  async function loginComSenha(senha: string, nomeDoDispositivo: string): Promise<void> {
+    client.onCredential = (credential) => {
+      token.value = credential
+      persist()
+    }
+    mode.value = 'direct'
+    persist()
+    try {
+      await client.connect({ url: url.value, token: '', password: senha, deviceName: nomeDoDispositivo })
+    } finally {
+      client.onCredential = null
+    }
+  }
   function disconnect(): void {
     client.close()
   }
@@ -139,5 +154,5 @@ export const useConnection = defineStore('connection', () => {
     })
   }
 
-  return { mode, url, token, accountToken, deviceId, devices, status, detail, device, connect, disconnect, pairLocal, whenOnline }
+  return { mode, url, token, accountToken, deviceId, devices, status, detail, device, connect, disconnect, loginComSenha, pairLocal, whenOnline }
 })

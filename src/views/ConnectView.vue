@@ -1,7 +1,10 @@
 <script setup lang="ts">
+import type { DeviceSummary } from '@agent-hub/core'
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { disablePush, enablePush, pushState, testPush, type PushState } from '../push'
+import ConfirmDialog from '../components/ConfirmDialog.vue'
+import { client } from '../daemon/client'
 import { useConnection } from '../stores/connection'
 import { useSessions } from '../stores/sessions'
 
@@ -17,6 +20,7 @@ const manual = ref(false)
 onMounted(async () => {
   void pushState().then((s) => (push.value = s))
   await conectarSozinho()
+  await carregarDispositivos()
 })
 
 /** Primeira tentativa e sempre automatica: na propria maquina o daemon entrega o token e a tela nem aparece. */
@@ -35,6 +39,67 @@ async function conectarSozinho(): Promise<void> {
   manual.value = true
 }
 
+const senha = ref('')
+const nomeDoDispositivo = ref(typeof navigator === 'undefined' ? 'dispositivo' : navigator.platform || 'dispositivo')
+const dispositivos = ref<DeviceSummary[]>([])
+const senhaDefinida = ref(false)
+const novaSenha = ref('')
+const revogar = ref<DeviceSummary | null>(null)
+
+async function carregarDispositivos(): Promise<void> {
+  if (connection.status !== 'online') return
+  try {
+    const res = await client.request({ type: 'auth.devices' }, 'auth.devices')
+    dispositivos.value = res.devices
+    senhaDefinida.value = res.senha_definida
+  } catch {
+    dispositivos.value = []
+  }
+}
+
+/** Entra com senha num daemon que nao e o desta maquina; a credencial devolvida fica guardada aqui. */
+async function entrarComSenha(): Promise<void> {
+  busy.value = true
+  error.value = ''
+  try {
+    await connection.loginComSenha(senha.value, nomeDoDispositivo.value)
+    senha.value = ''
+    await Promise.all([sessions.refresh(), sessions.loadAgents()])
+    await router.push({ name: 'sessions' })
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : String(err)
+  } finally {
+    busy.value = false
+  }
+}
+
+async function definirSenha(): Promise<void> {
+  error.value = ''
+  try {
+    const res = await client.request({ type: 'auth.password', password: novaSenha.value }, 'auth.devices')
+    dispositivos.value = res.devices
+    senhaDefinida.value = res.senha_definida
+    novaSenha.value = ''
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : String(err)
+  }
+}
+
+async function confirmarRevogar(): Promise<void> {
+  const alvo = revogar.value
+  revogar.value = null
+  if (!alvo) return
+  try {
+    const res = await client.request({ type: 'auth.revoke', device_id: alvo.id }, 'auth.devices')
+    dispositivos.value = res.devices
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : String(err)
+  }
+}
+
+function quando(ts: number | null): string {
+  return ts ? new Date(ts).toLocaleString('pt-BR') : 'nunca'
+}
 async function togglePush(): Promise<void> {
   error.value = ''
   try {
@@ -120,6 +185,50 @@ function pick(id: string): void {
       </div>
     </form>
 
+      <div v-if="manual" class="bloco">
+        <h2>Entrar com senha</h2>
+        <p class="muted small">
+          Para um daemon que nao e o desta maquina. Voce digita a senha uma vez e este dispositivo guarda uma
+          credencial propria, que voce revoga quando quiser, sem trocar a senha dos outros.
+        </p>
+        <form @submit.prevent="entrarComSenha">
+          <label>
+            Nome deste dispositivo
+            <input v-model="nomeDoDispositivo" type="text" autocomplete="off" />
+          </label>
+          <label>
+            Senha
+            <input v-model="senha" type="password" autocomplete="current-password" />
+          </label>
+          <button class="primary" type="submit" :disabled="busy || !senha">Entrar e guardar credencial</button>
+        </form>
+      </div>
+
+      <div v-if="connection.status === 'online'" class="bloco">
+        <h2>Acesso remoto</h2>
+        <p class="muted small">
+          {{ senhaDefinida ? 'Ha uma senha definida neste daemon.' : 'Sem senha definida: nenhum dispositivo de fora consegue entrar.' }}
+          Minimo de oito caracteres.
+        </p>
+        <form @submit.prevent="definirSenha">
+          <label>
+            {{ senhaDefinida ? 'Trocar a senha' : 'Definir a senha' }}
+            <input v-model="novaSenha" type="password" autocomplete="new-password" />
+          </label>
+          <button type="submit" :disabled="novaSenha.length < 8">{{ senhaDefinida ? 'Trocar' : 'Definir' }}</button>
+        </form>
+        <h2 style="margin-top: 12px">Dispositivos autorizados</h2>
+        <p v-if="!dispositivos.length" class="muted small">Nenhum. Esta maquina nao precisa de credencial.</p>
+        <ul class="list">
+          <li v-for="d in dispositivos" :key="d.id">
+            <strong>{{ d.name }}</strong>
+            <span class="muted small">ultimo acesso {{ quando(d.lastSeen) }}</span>
+            <span class="spacer"></span>
+            <button class="ghost small" @click="revogar = d">Revogar</button>
+          </li>
+        </ul>
+      </div>
+
     <div v-if="connection.status === 'online'" class="push">
       <p class="muted small">Notificacoes push para aprovacoes e fim de run. Funcionam em localhost e em HTTPS.</p>
       <div class="row">
@@ -129,5 +238,13 @@ function pick(id: string): void {
         <button v-if="push === 'on'" type="button" @click="testPush">Testar</button>
       </div>
     </div>
+    <ConfirmDialog
+      v-if="revogar"
+      title="Revogar dispositivo"
+      :detail="`O dispositivo ${revogar.name} vai precisar entrar com a senha de novo.`"
+      confirm-label="Revogar"
+      @confirm="confirmarRevogar"
+      @cancel="revogar = null"
+    />
   </section>
 </template>

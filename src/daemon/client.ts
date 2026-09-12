@@ -7,6 +7,8 @@ export type Status = 'offline' | 'connecting' | 'devices' | 'online' | 'error'
 export interface ConnectOptions {
   url: string
   token: string
+  password?: string
+  deviceName?: string
   accountToken?: string
   deviceId?: string
 }
@@ -28,6 +30,9 @@ export class DaemonClient {
   private attached = false
   status: Status = 'offline'
   device = ''
+  credential = ''
+  senhaDefinida = false
+  onCredential: ((credential: string) => void) | null = null
   devices: RelayDevice[] = []
 
   onStatus(fn: (s: Status, detail?: string) => void): () => void {
@@ -71,6 +76,7 @@ export class DaemonClient {
       this.socket = socket
       socket.onopen = () => {
         if (opts.accountToken) this.plain({ type: 'relay.auth', account_token: opts.accountToken, client: 'web' })
+        else if (opts.password) this.plain({ type: 'auth.login', password: opts.password, device_name: opts.deviceName ?? 'navegador', protocol_version: protocolVersion, client: 'web' })
         else this.plain({ type: 'auth', token: opts.token, protocol_version: protocolVersion, client: 'web' })
       }
       socket.onmessage = async (ev) => {
@@ -102,8 +108,13 @@ export class DaemonClient {
             fail(frame.message)
             socket.close()
             return
+          case 'auth.credential':
+            this.credential = frame.credential
+            this.onCredential?.(frame.credential)
+            return
           case 'auth.ok':
             this.device = frame.device
+            this.senhaDefinida = frame.senha_definida === true
             this.attempts = 0
             this.setStatus('online')
             done('online')

@@ -412,6 +412,9 @@ export const useSessions = defineStore('sessions', () => {
       case 'compaction':
         t.push({ kind: 'info', text: `Compactacao (${event.mode}): ${event.before} para ${event.after} tokens estimados` })
         return
+      case 'knowledge_indexed':
+        t.push({ kind: 'info', text: `Base de conhecimento: ${event.files} arquivos em ${event.chunks} trechos${event.ignored.length ? `. Ignorados: ${event.ignored.join(', ')}` : ''}` })
+        return
       case 'workspace_context': {
         const carregado = [...event.instructions, ...event.memories]
         t.push({

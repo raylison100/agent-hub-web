@@ -111,6 +111,37 @@ async function confirmarRevogar(): Promise<void> {
 function quando(ts: number | null): string {
   return ts ? new Date(ts).toLocaleString('pt-BR') : 'nunca'
 }
+
+const daemonAviso = ref('')
+const reiniciando = ref(false)
+
+/** Recarrega perfis, papeis, precos e conectores sem derrubar o processo: resolve quase toda mudanca de configuracao. */
+async function recarregar(): Promise<void> {
+  daemonAviso.value = ''
+  try {
+    const res = await client.request({ type: 'daemon.reload' }, 'daemon.status')
+    daemonAviso.value = res.detalhe
+  } catch (err) {
+    daemonAviso.value = err instanceof Error ? err.message : String(err)
+  }
+}
+
+/** Reinicio de verdade, para quando o codigo do daemon mudou. Com o servico instalado, ele volta sozinho. */
+async function reiniciarDaemon(): Promise<void> {
+  daemonAviso.value = ''
+  reiniciando.value = true
+  try {
+    const res = await client.request({ type: 'daemon.restart' }, 'daemon.status')
+    daemonAviso.value = res.detalhe
+    setTimeout(() => {
+      reiniciando.value = false
+      void connection.connect().then(carregarDispositivos)
+    }, 6000)
+  } catch (err) {
+    reiniciando.value = false
+    daemonAviso.value = err instanceof Error ? err.message : String(err)
+  }
+}
 async function togglePush(): Promise<void> {
   error.value = ''
   try {
@@ -218,6 +249,20 @@ function pick(id: string): void {
           <button class="primary" type="submit" :disabled="busy || !senha">Entrar e guardar credencial</button>
         </form>
       </div>
+
+    <div v-if="connection.status === 'online'" class="bloco">
+      <h2>Daemon</h2>
+      <p class="muted small">
+        Mudou perfil, papel, preco ou conector: recarregar basta, e nada cai. Mudou o codigo do daemon: precisa
+        reiniciar. Com o servico do systemd instalado (<code>make servico</code>) ele volta sozinho e sobe junto com a
+        maquina; sem o servico, o daemon deixa um processo novo no lugar antes de sair.
+      </p>
+      <div class="row">
+        <button type="button" :disabled="reiniciando" @click="recarregar">Recarregar configuracao</button>
+        <button type="button" :disabled="reiniciando" @click="reiniciarDaemon">{{ reiniciando ? 'Reiniciando...' : 'Reiniciar daemon' }}</button>
+      </div>
+      <p v-if="daemonAviso" class="muted small">{{ daemonAviso }}</p>
+    </div>
 
     <div v-if="connection.status === 'online'" class="bloco">
         <h2>Acesso remoto</h2>

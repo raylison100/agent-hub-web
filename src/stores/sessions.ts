@@ -413,6 +413,12 @@ export const useSessions = defineStore('sessions', () => {
       case 'compaction':
         t.push({ kind: 'info', text: `Compactacao (${event.mode}): ${event.before} para ${event.after} tokens estimados` })
         return
+      case 'tools_selected':
+        t.push({
+          kind: 'info',
+          text: `Ferramentas: ${event.kept} enviadas neste pedido, ${event.dropped} deixadas de fora por nao caberem no teto de ${event.budget} tokens`,
+        })
+        return
       case 'mcp_skipped':
         t.push({
           kind: 'info',

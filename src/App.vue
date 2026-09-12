@@ -76,6 +76,7 @@ watch(
 const panelOpen = ref(true)
 
 onMounted(async () => {
+  if (!connection.token) await connection.pairLocal()
   if (!connection.token) {
     await router.push({ name: 'connect' })
     return

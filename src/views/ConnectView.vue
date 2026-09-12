@@ -11,8 +11,29 @@ const router = useRouter()
 const busy = ref(false)
 const error = ref('')
 const push = ref<PushState>('off')
+const tentandoAuto = ref(true)
+const manual = ref(false)
 
-onMounted(() => void pushState().then((s) => (push.value = s)))
+onMounted(async () => {
+  void pushState().then((s) => (push.value = s))
+  await conectarSozinho()
+})
+
+/** Primeira tentativa e sempre automatica: na propria maquina o daemon entrega o token e a tela nem aparece. */
+async function conectarSozinho(): Promise<void> {
+  tentandoAuto.value = true
+  try {
+    if (await connection.pairLocal()) {
+      await connect()
+      return
+    }
+  } catch {
+    error.value = ''
+  } finally {
+    tentandoAuto.value = false
+  }
+  manual.value = true
+}
 
 async function togglePush(): Promise<void> {
   error.value = ''
@@ -23,19 +44,20 @@ async function togglePush(): Promise<void> {
   }
 }
 
-
 async function connect(): Promise<void> {
   busy.value = true
   error.value = ''
   try {
     const result = await connection.connect()
     if (result === 'devices') {
+      manual.value = true
       if (connection.devices.length === 0) error.value = 'nenhum dispositivo online nesta conta'
       return
     }
     await Promise.all([sessions.refresh(), sessions.loadAgents()])
     await router.push({ name: 'sessions' })
   } catch (err) {
+    manual.value = true
     error.value = err instanceof Error ? err.message : String(err)
   } finally {
     busy.value = false
@@ -51,11 +73,19 @@ function pick(id: string): void {
 <template>
   <section class="panel narrow">
     <h1>Conectar ao daemon</h1>
-    <p class="muted">
-      No desktop, use o endereco local. No celular ou fora da rede, use o relay com o token de conta.
-      Os valores vem de <code>agent-hub-daemon pair</code>.
-    </p>
-    <form @submit.prevent="connect">
+    <p v-if="tentandoAuto" class="muted">Procurando o daemon nesta maquina...</p>
+    <template v-else>
+      <p class="muted">
+        Na propria maquina a conexao e automatica: abra <code>http://127.0.0.1:47311</code> e o daemon entrega a
+        credencial sozinho. Este formulario serve para outro dispositivo, celular ou acesso pelo relay.
+      </p>
+      <div class="row">
+        <button class="primary" type="button" :disabled="busy" @click="conectarSozinho">Tentar de novo nesta maquina</button>
+        <button type="button" @click="manual = !manual">{{ manual ? 'Esconder conexao manual' : 'Conectar outro dispositivo' }}</button>
+      </div>
+    </template>
+
+    <form v-if="manual" @submit.prevent="connect">
       <label>
         Modo
         <select v-model="connection.mode">
@@ -75,6 +105,7 @@ function pick(id: string): void {
         Token do daemon
         <input v-model="connection.token" type="password" autocomplete="off" />
       </label>
+      <p class="muted small">O link pronto com esses valores sai de <code>make token</code> ou <code>agent-hub-daemon pair</code>.</p>
       <div v-if="connection.mode === 'relay' && connection.devices.length" class="devices">
         <p class="muted small">Dispositivos online</p>
         <button v-for="d in connection.devices" :key="d.id" type="button" :class="{ primary: d.id === connection.deviceId }" @click="pick(d.id)">
@@ -88,6 +119,7 @@ function pick(id: string): void {
         <button type="button" @click="connection.disconnect()">Desconectar</button>
       </div>
     </form>
+
     <div v-if="connection.status === 'online'" class="push">
       <p class="muted small">Notificacoes push para aprovacoes e fim de run. Funcionam em localhost e em HTTPS.</p>
       <div class="row">

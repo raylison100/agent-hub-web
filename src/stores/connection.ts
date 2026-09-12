@@ -88,6 +88,30 @@ export const useConnection = defineStore('connection', () => {
     return result
   }
 
+  /** Pareamento automatico: a interface servida pelo proprio daemon pede o token na mesma origem, sem voce digitar nada. */
+  async function pairLocal(): Promise<boolean> {
+    if (token.value) return true
+    if (typeof window === 'undefined') return false
+    const bases = [window.location.origin, 'http://127.0.0.1:47311']
+    for (const base of bases) {
+      if (base.startsWith('http') === false) continue
+      try {
+        const res = await fetch(`${base}/pair/local`, { headers: { accept: 'application/json' } })
+        if (!res.ok) continue
+        const data = (await res.json()) as { url?: string; token?: string }
+        if (!data.token || !data.url) continue
+        mode.value = 'direct'
+        url.value = data.url
+        token.value = data.token
+        persist()
+        return true
+      } catch {
+        continue
+      }
+    }
+    return false
+  }
+
   function disconnect(): void {
     client.close()
   }
@@ -115,5 +139,5 @@ export const useConnection = defineStore('connection', () => {
     })
   }
 
-  return { mode, url, token, accountToken, deviceId, devices, status, detail, device, connect, disconnect, whenOnline }
+  return { mode, url, token, accountToken, deviceId, devices, status, detail, device, connect, disconnect, pairLocal, whenOnline }
 })

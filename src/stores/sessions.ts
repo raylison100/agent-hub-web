@@ -384,6 +384,13 @@ export const useSessions = defineStore('sessions', () => {
       case 'escalation':
         t.push({ kind: 'info', tone: 'warn', text: `Escalado de ${event.from} para ${event.to}: ${event.reason}` })
         return
+      case 'max_output_retry':
+        t.push({
+          kind: 'info',
+          tone: 'warn',
+          text: `O raciocinio consumiu o teto de saida (${event.reasoningTokens} tokens) e a resposta veio vazia. Repetindo com teto ${event.maxOutput} e esforco ${event.reasoning}.`,
+        })
+        return
       case 'compaction':
         t.push({ kind: 'info', text: `Compactacao (${event.mode}): ${event.before} para ${event.after} tokens estimados` })
         return

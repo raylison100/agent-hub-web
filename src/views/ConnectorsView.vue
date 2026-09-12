@@ -75,11 +75,13 @@ async function run(action: () => Promise<void>): Promise<void> {
   }
 }
 
+/** O estado que importa: sem agente usando, o conector nem precisa subir, e dizer so "nao conectado" confunde. */
 function estado(s: Server): { texto: string; tom: string } {
   if (!s.enabled) return { texto: 'Desligado', tom: 'off' }
   if (s.connected) return { texto: 'Conectado', tom: 'on' }
   if (s.error) return { texto: 'Falhou', tom: 'error' }
-  return { texto: 'Nao conectado', tom: 'idle' }
+  if (s.agents.length === 0) return { texto: 'Sem agente', tom: 'idle' }
+  return { texto: 'Conectando...', tom: 'idle' }
 }
 
 async function importar(): Promise<void> {
@@ -215,7 +217,7 @@ async function remover(): Promise<void> {
             {{ a.name }}
           </button>
         </div>
-        <p v-if="!current.agents?.length" class="warn small">Nenhum agente usa este conector, entao os modelos nao veem as ferramentas dele.</p>
+        <p v-if="!current.agents?.length" class="warn small">Nenhum agente usa este conector. Marque um agente acima e o daemon passa a manter a conexao dele sozinho.</p>
 
         <h3>Ferramentas</h3>
         <p class="small">{{ current.connected ? `${current.tools} disponiveis` : 'conecte para listar' }}</p>

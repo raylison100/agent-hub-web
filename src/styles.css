@@ -1899,6 +1899,7 @@ tfoot td {
 
 .skill-name {
   font-weight: 500;
+  margin-right: 6px;
 }
 
 .skill-body {
@@ -2611,8 +2612,51 @@ tfoot td {
   max-width: 520px;
 }
 
+
+.settings-page > .page-head {
+  margin-bottom: var(--space-4);
+}
+
+.settings-page > .page-head p {
+  margin: var(--space-1) 0 0;
+  max-width: 68ch;
+}
+
+.settings-page > .page-head input[type='search'] {
+  min-width: 220px;
+}
+
+.settings-page .master,
+.settings-page .master-detail,
+.settings-page .detail,
+.settings-page .add-box {
+  margin-top: var(--space-2);
+}
+
+.settings-page .table-wrap {
+  margin-top: var(--space-4);
+}
+
+.settings-page > .row {
+  margin-bottom: var(--space-2);
+}
+
+.settings-page > .row + .row {
+  margin-top: var(--space-2);
+}
+
+.settings-page select,
+.settings-page > .row > select {
+  min-width: 200px;
+}
 .settings-page .list {
   margin: 0 0 var(--space-3);
+}
+
+
+.settings-page .list .row,
+.settings-page .list form {
+  margin-top: var(--space-2);
 }
 
 @media (max-width: 900px) {

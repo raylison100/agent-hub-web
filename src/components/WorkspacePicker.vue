@@ -11,6 +11,8 @@ const open = aberto('workspace')
 const path = ref<string | null>(null)
 const roots = ref<string[]>([])
 const dirs = ref<string[]>([])
+const repo = ref(true)
+const repos = ref<string[]>([])
 const error = ref('')
 const wslDistro = ref<string | null>(null)
 const desktop = isDesktop()
@@ -61,6 +63,8 @@ async function enter(dir: string): Promise<void> {
     const res = await client.request({ type: 'workspace.list', path: dir }, 'workspace.list')
     path.value = res.path
     dirs.value = res.dirs
+    repo.value = res.repo
+    repos.value = res.repos
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err)
   }
@@ -157,10 +161,14 @@ function choose(dir: string): void {
           <button class="ghost small" @click="back">Voltar</button>
           <span class="ws-current" :title="path">{{ path }}</span>
         </div>
+        <p v-if="!repo" class="ws-nota muted small">Esta pasta nao e um repositorio git. A ferramenta git nao funciona aqui; entre na pasta do repositorio.</p>
         <button class="primary small ws-use" @click="choose(path)">Usar esta pasta</button>
         <div class="ws-list">
           <button v-for="d in dirs" :key="d" class="ws-row" @click="enter(`${path}/${d}`)">
-            <span class="ws-name">{{ d }}</span>
+            <span class="ws-linha">
+              <span class="ws-name">{{ d }}</span>
+              <span v-if="repos.includes(d)" class="ws-git">git</span>
+            </span>
           </button>
           <p v-if="dirs.length === 0" class="muted small">Sem subpastas.</p>
         </div>

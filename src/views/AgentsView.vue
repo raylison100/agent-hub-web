@@ -1,13 +1,17 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
 import { useSessions } from '../stores/sessions'
+import { useConnection } from '../stores/connection'
 
 const sessions = useSessions()
-onMounted(() => void sessions.loadAgents().catch(() => undefined))
+onMounted(async () => {
+  await useConnection().whenOnline().catch(() => undefined)
+  await sessions.loadAgents().catch(() => undefined)
+})
 </script>
 
 <template>
-  <section class="panel">
+  <section class="settings-page">
     <h1>Agentes</h1>
     <p v-if="sessions.agentErrors.length" class="error">
       <span v-for="e in sessions.agentErrors" :key="e.file">{{ e.file }}: {{ e.message }}<br /></span>

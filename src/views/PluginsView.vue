@@ -31,7 +31,7 @@ async function load(): Promise<void> {
 </script>
 
 <template>
-  <section class="page">
+  <section class="settings-page">
     <div class="page-head">
       <div>
         <h1>Plugins</h1>

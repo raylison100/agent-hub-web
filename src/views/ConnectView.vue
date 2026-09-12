@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { DeviceSummary } from '@agent-hub/core'
-import { onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { disablePush, enablePush, pushState, testPush, type PushState } from '../push'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import { client } from '../daemon/client'
@@ -11,15 +11,26 @@ import { useSessions } from '../stores/sessions'
 const connection = useConnection()
 const sessions = useSessions()
 const router = useRouter()
+const route = useRoute()
 const busy = ref(false)
 const error = ref('')
 const push = ref<PushState>('off')
 const tentandoAuto = ref(true)
-const manual = ref(false)
+const manualAberto = ref<boolean | null>(null)
+
+/** Sem escolha sua, o formulario manual aparece so quando nao estamos conectados. */
+const manual = computed(() => manualAberto.value ?? connection.status !== 'online')
+
+/** Dentro das configuracoes esta tela e um painel: mostra o estado e nao leva voce para lugar nenhum. */
+const comoPainel = computed(() => route.path.startsWith('/settings'))
 
 onMounted(async () => {
   void pushState().then((s) => (push.value = s))
-  await conectarSozinho()
+  if (comoPainel.value || connection.status === 'online') {
+    tentandoAuto.value = false
+  } else {
+    await conectarSozinho()
+  }
   await carregarDispositivos()
 })
 
@@ -36,7 +47,7 @@ async function conectarSozinho(): Promise<void> {
   } finally {
     tentandoAuto.value = false
   }
-  manual.value = true
+  manualAberto.value = true
 }
 
 const senha = ref('')
@@ -65,7 +76,7 @@ async function entrarComSenha(): Promise<void> {
     await connection.loginComSenha(senha.value, nomeDoDispositivo.value)
     senha.value = ''
     await Promise.all([sessions.refresh(), sessions.loadAgents()])
-    await router.push({ name: 'sessions' })
+    if (!comoPainel.value) await router.push({ name: 'sessions' })
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err)
   } finally {
@@ -115,14 +126,14 @@ async function connect(): Promise<void> {
   try {
     const result = await connection.connect()
     if (result === 'devices') {
-      manual.value = true
+      manualAberto.value = true
       if (connection.devices.length === 0) error.value = 'nenhum dispositivo online nesta conta'
       return
     }
     await Promise.all([sessions.refresh(), sessions.loadAgents()])
-    await router.push({ name: 'sessions' })
+    if (!comoPainel.value) await router.push({ name: 'sessions' })
   } catch (err) {
-    manual.value = true
+    manualAberto.value = true
     error.value = err instanceof Error ? err.message : String(err)
   } finally {
     busy.value = false
@@ -136,20 +147,25 @@ function pick(id: string): void {
 </script>
 
 <template>
-  <section class="panel narrow">
-    <h1>Conectar ao daemon</h1>
+  <section class="settings-page" :class="{ centralizada: !comoPainel }">
+    <h1>{{ comoPainel ? 'Conexao' : 'Conectar ao daemon' }}</h1>
     <p v-if="tentandoAuto" class="muted">Procurando o daemon nesta maquina...</p>
     <template v-else>
-      <p class="muted">
+      <p v-if="connection.status === 'online'" class="muted">
+        Conectado em <strong>{{ connection.device || 'este computador' }}</strong> por <code>{{ connection.url }}</code>.
+        Nesta maquina a conexao e automatica: o daemon serve a interface e entrega a credencial sozinho.
+      </p>
+      <p v-else class="muted">
         Na propria maquina a conexao e automatica: abra <code>http://127.0.0.1:47311</code> e o daemon entrega a
-        credencial sozinho. Este formulario serve para outro dispositivo, celular ou acesso pelo relay.
+        credencial sozinho. Os campos abaixo servem para outro dispositivo, celular ou acesso pelo relay.
       </p>
       <div class="row">
-        <button class="primary" type="button" :disabled="busy" @click="conectarSozinho">Tentar de novo nesta maquina</button>
-        <button type="button" @click="manual = !manual">{{ manual ? 'Esconder conexao manual' : 'Conectar outro dispositivo' }}</button>
+        <button v-if="connection.status !== 'online'" class="primary" type="button" :disabled="busy" @click="conectarSozinho">
+          Tentar de novo nesta maquina
+        </button>
+        <button type="button" @click="manualAberto = !manual">{{ manual ? 'Esconder conexao manual' : 'Conectar outro dispositivo' }}</button>
       </div>
     </template>
-
     <form v-if="manual" @submit.prevent="connect">
       <label>
         Modo
@@ -184,8 +200,7 @@ function pick(id: string): void {
         <button type="button" @click="connection.disconnect()">Desconectar</button>
       </div>
     </form>
-
-      <div v-if="manual" class="bloco">
+    <div v-if="manual" class="bloco">
         <h2>Entrar com senha</h2>
         <p class="muted small">
           Para um daemon que nao e o desta maquina. Voce digita a senha uma vez e este dispositivo guarda uma
@@ -204,7 +219,7 @@ function pick(id: string): void {
         </form>
       </div>
 
-      <div v-if="connection.status === 'online'" class="bloco">
+    <div v-if="connection.status === 'online'" class="bloco">
         <h2>Acesso remoto</h2>
         <p class="muted small">
           {{ senhaDefinida ? 'Ha uma senha definida neste daemon.' : 'Sem senha definida: nenhum dispositivo de fora consegue entrar.' }}
@@ -217,7 +232,7 @@ function pick(id: string): void {
           </label>
           <button type="submit" :disabled="novaSenha.length < 8">{{ senhaDefinida ? 'Trocar' : 'Definir' }}</button>
         </form>
-        <h2 style="margin-top: 12px">Dispositivos autorizados</h2>
+        <h2>Dispositivos autorizados</h2>
         <p v-if="!dispositivos.length" class="muted small">Nenhum. Esta maquina nao precisa de credencial.</p>
         <ul class="list">
           <li v-for="d in dispositivos" :key="d.id">

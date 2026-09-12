@@ -3,6 +3,7 @@ import type { ContextFile } from '@agent-hub/core'
 import { onMounted, ref } from 'vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import WorkspacePicker from '../components/WorkspacePicker.vue'
+import { useConnection } from '../stores/connection'
 import { client } from '../daemon/client'
 
 const workspace = ref(recente())
@@ -21,7 +22,8 @@ function recente(): string {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await useConnection().whenOnline().catch(() => undefined)
   if (workspace.value) void carregar()
 })
 
@@ -62,7 +64,7 @@ function escolher(dir: string): void {
 </script>
 
 <template>
-  <section class="panel">
+  <section class="settings-page">
     <h1>Contexto do projeto</h1>
     <p class="muted">
       O que os agentes gravaram na pasta <code>.agent-hub</code> deste workspace. A memoria entra no inicio de cada

@@ -139,7 +139,7 @@ async function remover(): Promise<void> {
 </script>
 
 <template>
-  <section class="page">
+  <section class="settings-page">
     <div class="page-head">
       <div>
         <h1>Servidores MCP</h1>

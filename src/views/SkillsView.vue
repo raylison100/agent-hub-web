@@ -52,7 +52,7 @@ async function abrir(s: Skill): Promise<void> {
 </script>
 
 <template>
-  <section class="page">
+  <section class="settings-page">
     <div class="page-head">
       <div>
         <h1>Skills</h1>

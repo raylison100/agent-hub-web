@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { client } from '../daemon/client'
+import { useConnection } from '../stores/connection'
 
 interface SecretRow {
   name: string
@@ -61,11 +62,14 @@ function when(ts: number): string {
   return ts ? new Date(ts).toLocaleString() : 'do ambiente'
 }
 
-onMounted(load)
+onMounted(async () => {
+  await useConnection().whenOnline().catch(() => undefined)
+  await load()
+})
 </script>
 
 <template>
-  <section class="panel">
+  <section class="settings-page">
     <h1>Chaves e segredos</h1>
     <p class="muted small">
       Guardadas no SQLite do daemon, cifradas com uma chave local em <code>~/.agent-hub/secrets.key</code>. A interface nunca recebe o valor de volta,

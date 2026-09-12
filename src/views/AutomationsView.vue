@@ -2,6 +2,7 @@
 import type { AutomationRun, HookCatalogItem, ScheduleStatus, ServerFrame, WorkflowRunState } from '@agent-hub/core'
 import { onMounted, onUnmounted, ref } from 'vue'
 import { client } from '../daemon/client'
+import { useConnection } from '../stores/connection'
 import { useSessions } from '../stores/sessions'
 
 const sessions = useSessions()
@@ -124,8 +125,9 @@ function onFrame(f: ServerFrame): void {
 }
 
 let off: (() => void) | null = null
-onMounted(() => {
+onMounted(async () => {
   off = client.on(onFrame)
+  await useConnection().whenOnline().catch(() => undefined)
   void load()
   void loadGanchos()
   void loadParados()
@@ -134,94 +136,97 @@ onUnmounted(() => off?.())
 </script>
 
 <template>
-  <section class="two-col">
-    <div class="panel">
-      <h1>Novo agendamento</h1>
-      <form @submit.prevent="save">
-        <label>Id <input v-model="form.id" type="text" placeholder="resumo-diario" spellcheck="false" /></label>
-        <label>Cron <input v-model="form.cron" type="text" spellcheck="false" /></label>
-        <label>Fuso <input v-model="form.timezone" type="text" spellcheck="false" /></label>
-        <label>
-          Agente
-          <select v-model="form.agent">
-            <option v-for="a in sessions.agents" :key="a.name" :value="a.name">{{ a.name }}</option>
-          </select>
-        </label>
-        <label>Workspace <input v-model="form.workspace" type="text" spellcheck="false" /></label>
-        <label>Prompt <textarea v-model="form.prompt" rows="3"></textarea></label>
-        <label>
-          Modo
-          <select v-model="form.mode">
-            <option value="draft">rascunho (sem escrita nem execucao)</option>
-            <option value="normal">normal (politica do perfil)</option>
-          </select>
-        </label>
-        <div class="row">
-          <label>Por run USD <input v-model="form.run_usd" type="number" step="0.01" min="0" /></label>
-          <label>Por dia USD <input v-model="form.day_usd" type="number" step="0.01" min="0" /></label>
-        </div>
-        <p v-if="error" class="error">{{ error }}</p>
-        <button class="primary" type="submit">Salvar</button>
-      </form>
-    </div>
-    <div class="panel">
-      <div class="row" style="justify-content: space-between">
+  <section class="settings-page">
+    <div class="page-head">
+      <div>
         <h1>Automacoes</h1>
-        <button :class="{ primary: paused }" @click="toggle">{{ paused ? 'Retomar tudo' : 'Pausar tudo' }}</button>
+        <p class="muted small">Agendamentos por cron, ganchos em volta das ferramentas e o que rodou sozinho.</p>
       </div>
-      <p v-if="!schedules.length" class="muted">Nenhum agendamento.</p>
-      <ul class="list">
-        <li v-for="s in schedules" :key="s.id">
-          <div class="list-title">{{ s.id }} <span class="tag">{{ s.source }}</span> <span v-if="s.running" class="tag">rodando</span></div>
-          <div class="muted small">{{ s.cron ?? `em ${when(s.at ?? null)}` }} ({{ s.timezone }}), {{ s.agent }}, {{ s.mode }}</div>
-          <div class="muted small">proximo {{ when(s.nextRunAt) }}, ultimo {{ when(s.lastRunAt) }}, hoje {{ s.todayUsd.toFixed(4) }} de {{ s.budget.day_usd }} USD</div>
-          <div class="row" style="margin-top: 6px">
-            <button @click="runNow(s.id)">Rodar agora</button>
-            <button @click="remove(s.id)">Apagar</button>
-          </div>
-        </li>
-      </ul>
-      <div v-if="parados.length" class="bloco">
-        <h1 style="margin-top: 16px">Workflows parados no meio</h1>
-        <ul class="list">
-          <li v-for="p in parados" :key="p.runId">
-            <span class="tag">{{ p.status }}</span>
-            <strong>{{ p.name }}</strong>
-            <span class="muted small">proxima etapa {{ p.nextStep ?? '-' }}, ja gastou {{ p.costUsd.toFixed(4) }} USD</span>
-            <button class="primary small" @click="continuar(p.runId)">Continuar</button>
-          </li>
-        </ul>
-      </div>
-
-      <h1 style="margin-top: 16px">Ganchos prontos</h1>
-      <p class="muted small">
-        Comandos que o harness dispara sozinho em volta das ferramentas. Ligar escreve em agents/hooks.json;
-        desligar tira de la. {{ extras }} gancho(s) seu(s) fora deste catalogo continuam como estao.
-      </p>
-      <ul class="list">
-        <li v-for="g in ganchos" :key="g.id">
-          <div class="hook-linha">
-            <strong>{{ g.title }}</strong>
-            <span class="tag">{{ g.event }}</span>
-            <span v-if="g.tool" class="tag">{{ g.tool }}</span>
-            <span class="spacer"></span>
-            <button :class="{ primary: !g.enabled }" @click="ligarGancho(g.id, !g.enabled)">{{ g.enabled ? 'Desligar' : 'Ligar' }}</button>
-          </div>
-          <p class="muted small">{{ g.detail }}</p>
-        </li>
-      </ul>
-
-      <h1 style="margin-top: 16px">Ultimas execucoes</h1>
-      <ul class="list">
-        <li v-for="r in runs" :key="r.id">
-          <RouterLink :to="{ name: 'chat', params: { id: r.sessionId } }">
-            <span class="tag">{{ r.kind }}</span> {{ r.automationId }}
-            <span class="muted small">{{ when(r.startedAt) }}</span>
-            <span class="tag">{{ r.status }}</span>
-            <span class="cost">{{ r.costUsd.toFixed(4) }} USD</span>
-          </RouterLink>
-        </li>
-      </ul>
+      <button :class="{ primary: paused }" @click="toggle">{{ paused ? 'Retomar tudo' : 'Pausar tudo' }}</button>
     </div>
+
+    <h2>Agendamentos</h2>
+    <p v-if="!schedules.length" class="muted small">Nenhum agendamento.</p>
+    <ul class="list">
+      <li v-for="s in schedules" :key="s.id">
+        <div class="list-title">{{ s.id }} <span class="tag">{{ s.source }}</span> <span v-if="s.running" class="tag">rodando</span></div>
+        <div class="muted small">{{ s.cron ?? `em ${when(s.at ?? null)}` }} ({{ s.timezone }}), {{ s.agent }}, {{ s.mode }}</div>
+        <div class="muted small">proximo {{ when(s.nextRunAt) }}, ultimo {{ when(s.lastRunAt) }}, hoje {{ s.todayUsd.toFixed(4) }} de {{ s.budget.day_usd }} USD</div>
+        <div class="row">
+          <button @click="runNow(s.id)">Rodar agora</button>
+          <button @click="remove(s.id)">Apagar</button>
+        </div>
+      </li>
+    </ul>
+
+    <h2>Novo agendamento</h2>
+    <form @submit.prevent="save">
+      <label>Id <input v-model="form.id" type="text" placeholder="resumo-diario" spellcheck="false" /></label>
+      <label>Cron <input v-model="form.cron" type="text" spellcheck="false" /></label>
+      <label>Fuso <input v-model="form.timezone" type="text" spellcheck="false" /></label>
+      <label>
+        Agente
+        <select v-model="form.agent">
+          <option v-for="a in sessions.agents" :key="a.name" :value="a.name">{{ a.name }}</option>
+        </select>
+      </label>
+      <label>Workspace <input v-model="form.workspace" type="text" spellcheck="false" /></label>
+      <label>Prompt <textarea v-model="form.prompt" rows="3"></textarea></label>
+      <label>
+        Modo
+        <select v-model="form.mode">
+          <option value="draft">rascunho (sem escrita nem execucao)</option>
+          <option value="normal">normal (politica do perfil)</option>
+        </select>
+      </label>
+      <div class="row">
+        <label>Por run USD <input v-model="form.run_usd" type="number" step="0.01" min="0" /></label>
+        <label>Por dia USD <input v-model="form.day_usd" type="number" step="0.01" min="0" /></label>
+      </div>
+      <p v-if="error" class="error">{{ error }}</p>
+      <button class="primary" type="submit">Salvar</button>
+    </form>
+
+    <template v-if="parados.length">
+      <h2>Workflows parados no meio</h2>
+      <ul class="list">
+        <li v-for="p in parados" :key="p.runId">
+          <span class="tag">{{ p.status }}</span>
+          <strong>{{ p.name }}</strong>
+          <span class="muted small">proxima etapa {{ p.nextStep ?? '-' }}, ja gastou {{ p.costUsd.toFixed(4) }} USD</span>
+          <button class="primary small" @click="continuar(p.runId)">Continuar</button>
+        </li>
+      </ul>
+    </template>
+
+    <h2>Ganchos prontos</h2>
+    <p class="muted small">
+      Comandos que o harness dispara sozinho em volta das ferramentas. Ligar escreve em agents/hooks.json;
+      desligar tira de la. {{ extras }} gancho(s) seu(s) fora deste catalogo continuam como estao.
+    </p>
+    <ul class="list">
+      <li v-for="g in ganchos" :key="g.id">
+        <div class="hook-linha">
+          <strong>{{ g.title }}</strong>
+          <span class="tag">{{ g.event }}</span>
+          <span v-if="g.tool" class="tag">{{ g.tool }}</span>
+          <span class="spacer"></span>
+          <button :class="{ primary: !g.enabled }" @click="ligarGancho(g.id, !g.enabled)">{{ g.enabled ? 'Desligar' : 'Ligar' }}</button>
+        </div>
+        <p class="muted small">{{ g.detail }}</p>
+      </li>
+    </ul>
+
+    <h2>Ultimas execucoes</h2>
+    <ul class="list">
+      <li v-for="r in runs" :key="r.id">
+        <RouterLink :to="{ name: 'chat', params: { id: r.sessionId } }">
+          <span class="tag">{{ r.kind }}</span> {{ r.automationId }}
+          <span class="muted small">{{ when(r.startedAt) }}</span>
+          <span class="tag">{{ r.status }}</span>
+          <span class="cost">{{ r.costUsd.toFixed(4) }} USD</span>
+        </RouterLink>
+      </li>
+    </ul>
   </section>
 </template>

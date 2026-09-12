@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { client } from '../daemon/client'
+import { useConnection } from '../stores/connection'
 
 type Group = 'agent' | 'model' | 'session' | 'day'
 interface Row {
@@ -64,11 +65,14 @@ function cacheRate(r: Row): string {
   return denom === 0 ? '0%' : `${Math.round((r.cacheRead / denom) * 100)}%`
 }
 
-onMounted(load)
+onMounted(async () => {
+  await useConnection().whenOnline().catch(() => undefined)
+  await load()
+})
 </script>
 
 <template>
-  <section class="panel">
+  <section class="settings-page">
     <h1>Custos</h1>
     <div class="row">
       <select v-model="group" @change="load">

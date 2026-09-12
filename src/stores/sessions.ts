@@ -7,7 +7,8 @@ export type Reasoning = 'low' | 'medium' | 'high' | 'max'
 
 export interface ImageAttachment {
   mediaType: string
-  data: string
+  data?: string
+  ref?: string
   name?: string
 }
 
@@ -203,7 +204,7 @@ export const useSessions = defineStore('sessions', () => {
 
   async function start(sessionId: string, text: string, reasoning?: Reasoning, mode?: RunMode, agent?: string, improve?: boolean, images?: ImageAttachment[]): Promise<string> {
     timeline(sessionId).push({ kind: 'user', text, images })
-    const res = await client.request({ type: 'run.start', session_id: sessionId, text, reasoning, mode, agent, improve, images: images?.map((i) => ({ media_type: i.mediaType, data: i.data, name: i.name })) }, 'run.started')
+    const res = await client.request({ type: 'run.start', session_id: sessionId, text, reasoning, mode, agent, improve, images: images?.filter((i) => i.data).map((i) => ({ media_type: i.mediaType, data: i.data!, name: i.name })) }, 'run.started')
     runs.set(sessionId, { runId: res.run_id, costUsd: 0, steps: 0, finished: false, lastInputTokens: runs.get(sessionId)?.lastInputTokens ?? 0 })
     return res.run_id
   }
@@ -533,7 +534,8 @@ function fromMessages(messages: Message[]): TimelineItem[] {
       const raw = m.parts.map((p) => (p.type === 'text' ? p.text : '')).filter(Boolean).join('\n\n')
       const original = /<pedido_original>\n([\s\S]*?)\n<\/pedido_original>/.exec(raw)
       const text = original ? original[1]! : raw
-      t.push(m.kind === 'compaction' ? { kind: 'info', text } : { kind: 'user', text })
+      const imagens = m.parts.filter((p) => p.type === 'image').map((p) => ({ mediaType: p.mediaType, data: p.data, ref: p.ref, name: p.name }))
+      t.push(m.kind === 'compaction' ? { kind: 'info', text } : { kind: 'user', text, images: imagens.length > 0 ? imagens : undefined })
       if (original) t.push({ kind: 'improved', by: 'harness', original: text, improved: raw.slice(0, original.index).trim(), costUsd: 0 })
       continue
     }
@@ -586,4 +588,11 @@ export function diffStats(item: ToolItem): { plus: number; minus: number } {
 
 function lines(text: string): number {
   return text === '' ? 0 : text.split('\n').length
+}
+
+/** Endereco da imagem: o base64 quando ainda esta na memoria, ou a rota do daemon quando ja foi para o banco. */
+export function imageSrc(img: ImageAttachment): string {
+  if (img.data) return `data:${img.mediaType};base64,${img.data}`
+  const base = typeof window !== 'undefined' && window.location.origin.startsWith('http') ? window.location.origin : 'http://127.0.0.1:47311'
+  return img.ref ? `${base}/media/${img.ref}` : ''
 }

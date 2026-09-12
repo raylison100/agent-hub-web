@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useSessions, type TimelineItem, type ToolItem } from '../stores/sessions'
+import { imageSrc, useSessions, type TimelineItem, type ToolItem } from '../stores/sessions'
 import Markdown from './Markdown.vue'
 import SubagentCard from './SubagentCard.vue'
 import ToolGroup from './ToolGroup.vue'
@@ -37,7 +37,7 @@ const blocks = computed<Block[]>(() => {
     <template v-else>
       <div v-if="block.item.kind === 'user'" class="bubble user">
         <div v-if="block.item.images?.length" class="image-strip">
-          <img v-for="(img, i) in block.item.images" :key="i" class="sent-image" :src="`data:${img.mediaType};base64,${img.data}`" :alt="img.name ?? 'imagem'" />
+          <img v-for="(img, i) in block.item.images" :key="i" class="sent-image" :src="imageSrc(img)" :alt="img.name ?? 'imagem'" />
         </div>
         <pre>{{ block.item.text }}</pre>
       </div>

@@ -110,7 +110,7 @@ function lastWorkspace(): string {
 }
 
 /** Cria a sessao com a pasta e o agente escolhidos no composer e ja dispara a primeira mensagem. */
-async function send(text: string, reasoning: Reasoning | undefined, mode: RunMode, agent: string | undefined, improve: boolean, images: ImageAttachment[]): Promise<void> {
+async function send(text: string, reasoning: Reasoning | undefined, mode: RunMode, agent: string | undefined, improve: boolean, images: ImageAttachment[], role: string | undefined): Promise<void> {
   error.value = ''
   if (!workspace.value.trim()) {
     error.value = 'Escolha a pasta da sessao no seletor'
@@ -118,7 +118,7 @@ async function send(text: string, reasoning: Reasoning | undefined, mode: RunMod
   }
   creating.value = true
   try {
-    const session = await sessions.create(workspace.value, agent, text)
+    const session = await sessions.create(workspace.value, agent, text, role)
     try {
       localStorage.setItem('agent-hub.last-workspace', workspace.value)
     } catch {

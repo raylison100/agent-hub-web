@@ -1,4 +1,4 @@
-import type { AgentSummary, Message, RunEvent, RunMode, ServerFrame, SessionSummary } from '@agent-hub/core'
+import type { AgentSummary, Message, RoleSummary, RunEvent, RunMode, ServerFrame, SessionSummary } from '@agent-hub/core'
 import { defineStore } from 'pinia'
 import { reactive, ref } from 'vue'
 import { client } from '../daemon/client'
@@ -86,6 +86,7 @@ export interface CostStatus {
 export const useSessions = defineStore('sessions', () => {
   const sessions = ref<SessionSummary[]>([])
   const agents = ref<AgentSummary[]>([])
+  const roles = ref<RoleSummary[]>([])
   const agentErrors = ref<{ file: string; message: string }[]>([])
   const timelines = reactive(new Map<string, TimelineItem[]>())
   const runs = reactive(new Map<string, RunState>())
@@ -123,7 +124,7 @@ export const useSessions = defineStore('sessions', () => {
     sessions.value = list.sessions
   }
 
-  async function update(sessionId: string, patch: { title?: string; pinned?: boolean; archived?: boolean; agent?: string; mode?: RunMode; group?: string | null }): Promise<void> {
+  async function update(sessionId: string, patch: { title?: string; pinned?: boolean; archived?: boolean; agent?: string; role?: string | null; mode?: RunMode; group?: string | null }): Promise<void> {
     client.send({ type: 'session.update', session_id: sessionId, ...patch })
   }
 
@@ -159,6 +160,7 @@ export const useSessions = defineStore('sessions', () => {
   async function loadAgents(): Promise<void> {
     const res = await client.request({ type: 'agents.list' }, 'agents.list')
     agents.value = res.agents
+    roles.value = res.roles
     agentErrors.value = res.errors
   }
 
@@ -191,8 +193,8 @@ export const useSessions = defineStore('sessions', () => {
     void loadCostStatus()
   }
 
-  async function create(workspace: string, agent?: string, text?: string): Promise<SessionSummary> {
-    const res = await client.request({ type: 'session.create', workspace, agent, text }, 'session.created')
+  async function create(workspace: string, agent?: string, text?: string, role?: string): Promise<SessionSummary> {
+    const res = await client.request({ type: 'session.create', workspace, agent, text, role }, 'session.created')
     await refresh()
     return res.session
   }
@@ -439,6 +441,7 @@ export const useSessions = defineStore('sessions', () => {
   return {
     sessions,
     agents,
+    roles,
     agentErrors,
     timelines,
     runs,

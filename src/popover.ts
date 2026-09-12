@@ -1,6 +1,6 @@
 import { computed, ref, type ComputedRef } from 'vue'
 
-export type PopoverId = 'plus' | 'modo' | 'agente' | 'esforco' | 'uso' | 'workspace'
+export type PopoverId = 'plus' | 'modo' | 'agente' | 'papel' | 'esforco' | 'uso' | 'workspace'
 
 const ativo = ref<PopoverId | null>(null)
 

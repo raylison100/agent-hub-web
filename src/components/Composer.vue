@@ -76,13 +76,14 @@ const props = defineProps<{
   workspace?: string
 }>()
 const emit = defineEmits<{
-  send: [text: string, reasoning: Reasoning | undefined, mode: RunMode, agent: string | undefined, improve: boolean, images: ImageAttachment[]]
+  send: [text: string, reasoning: Reasoning | undefined, mode: RunMode, agent: string | undefined, improve: boolean, images: ImageAttachment[], role: string | undefined]
   cancel: []
   override: [limit: number]
   'update:workspace': [value: string]
 }>()
 
 const pendingAgent = ref('')
+const pendingRole = ref('')
 
 const improveKey = 'agent-hub.improve'
 const improve = ref(readImprove())
@@ -116,6 +117,21 @@ function pickAgent(name: string): void {
 }
 
 const autoAgent = 'auto'
+
+const showRole = aberto('papel')
+
+function pickRole(name: string | null): void {
+  fechar('papel')
+  if (!props.session) {
+    pendingRole.value = name ?? ''
+    return
+  }
+  void sessions.update(props.session.id, { role: name })
+}
+
+const chosenRole = computed(() => (props.session ? props.session.role : pendingRole.value || null))
+
+const roleChip = computed(() => chosenRole.value ?? 'Sem papel')
 
 const chosenAgent = computed(() => (props.session ? props.session.agent : pendingAgent.value || autoAgent))
 
@@ -240,7 +256,7 @@ function submit(): void {
   text.value = ''
   attachments.value = []
   images.value = []
-  emit('send', full, reasoning.value || undefined, mode.value, props.session ? undefined : pendingAgent.value || undefined, improve.value, sent)
+  emit('send', full, reasoning.value || undefined, mode.value, props.session ? undefined : pendingAgent.value || undefined, improve.value, sent, props.session ? undefined : pendingRole.value || undefined)
 }
 
 function onKey(e: KeyboardEvent): void {
@@ -327,6 +343,23 @@ function override(): void {
               <span class="mode-name">{{ a.name }}</span>
               <span class="mode-detail">{{ a.provider }}/{{ a.model }}, {{ a.description }}</span>
             </button>
+          </div>
+        </div>
+        <div class="popover-anchor">
+          <button class="chip-button" :class="{ auto: chosenRole !== null }" title="O papel define o prompt, as ferramentas e a politica; o modelo continua sendo escolhido pelo harness" @click="alternar('papel')">
+            {{ roleChip }}
+          </button>
+          <div v-if="showRole" class="popover left">
+            <div class="popover-title">Papel desta sessao</div>
+            <button class="mode-option" :class="{ active: chosenRole === null }" @click="pickRole(null)">
+              <span class="mode-name">Sem papel</span>
+              <span class="mode-detail">O agente usa o proprio prompt e as proprias ferramentas</span>
+            </button>
+            <button v-for="r in sessions.roles" :key="r.name" class="mode-option" :class="{ active: chosenRole === r.name }" @click="pickRole(r.name)">
+              <span class="mode-name">{{ r.name }}</span>
+              <span class="mode-detail">{{ r.description }}. Modelos: {{ r.models.join(', ') }}</span>
+            </button>
+            <p v-if="sessions.roles.length === 0" class="muted small pad">Nenhum papel em agents/roles.</p>
           </div>
         </div>
         <button class="chip-button" :class="{ auto: improve }" title="Um modelo barato reescreve seu pedido para o agente escolhido; o original fica registrado" @click="toggleImprove">

@@ -1,4 +1,4 @@
-import type { AgentSummary, Message, RoleSummary, RunEvent, RunMode, ServerFrame, SessionSummary } from '@agent-hub/core'
+import type { AgentSummary, Message, RoleSummary, RunEvent, RunMode, ServerFrame, SessionResumeRecord, SessionSummary } from '@agent-hub/core'
 import { defineStore } from 'pinia'
 import { reactive, ref } from 'vue'
 import { client } from '../daemon/client'
@@ -86,6 +86,7 @@ export interface CostStatus {
 export const useSessions = defineStore('sessions', () => {
   const sessions = ref<SessionSummary[]>([])
   const agents = ref<AgentSummary[]>([])
+  const resumes = ref(new Map<string, SessionResumeRecord | null>())
   const roles = ref<RoleSummary[]>([])
   const agentErrors = ref<{ file: string; message: string }[]>([])
   const timelines = reactive(new Map<string, TimelineItem[]>())
@@ -183,6 +184,7 @@ export const useSessions = defineStore('sessions', () => {
     const live = runs.get(sessionId)
     const keepLocal = live !== undefined && !live.finished && (timelines.get(sessionId)?.length ?? 0) > 0
     if (!keepLocal) timelines.set(sessionId, withChildren(fromMessages(res.messages), res.children ?? []))
+    resumes.value.set(sessionId, res.resume ?? null)
     if (!terminal.has(sessionId)) terminal.set(sessionId, [])
     void loadFeedback(sessionId)
     const since = lastSeq.get(sessionId)
@@ -245,6 +247,15 @@ export const useSessions = defineStore('sessions', () => {
     return t
   }
 
+  /** Ponto de retomada da sessao, escrito pelo daemon ao fim de cada run. */
+  function resume(sessionId: string): SessionResumeRecord | null {
+    return resumes.value.get(sessionId) ?? null
+  }
+
+  function dispensarResume(sessionId: string): void {
+    resumes.value.set(sessionId, null)
+  }
+
   function subagents(sessionId: string): SubagentItem[] {
     return timeline(sessionId).filter((i): i is SubagentItem => i.kind === 'subagent')
   }
@@ -277,6 +288,10 @@ export const useSessions = defineStore('sessions', () => {
       sessions.value.sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt - a.updatedAt)
       return
     }
+    if (frame.type === 'session.resume') {
+      resumes.value.set(frame.session_id, frame.resume)
+      return
+    }
     if (frame.type === 'feedback.ok') {
       if (frame.verdict === 'none') feedback.delete(frame.run_id)
       else feedback.set(frame.run_id, frame.verdict)
@@ -295,6 +310,7 @@ export const useSessions = defineStore('sessions', () => {
       sessions.value = sessions.value.filter((s) => s.id !== frame.session_id)
       timelines.delete(frame.session_id)
       runs.delete(frame.session_id)
+      resumes.value.delete(frame.session_id)
       return
     }
     if (frame.type === 'automation.started' || frame.type === 'workflow.started') {
@@ -466,6 +482,8 @@ export const useSessions = defineStore('sessions', () => {
     override,
     timeline,
     subagents,
+    resume,
+    dispensarResume,
   }
 })
 

@@ -23,6 +23,30 @@ const agent = computed(() => sessions.agents.find((a) => a.name === session.valu
 const items = computed(() => sessions.timeline(props.id))
 const run = computed(() => sessions.runs.get(props.id))
 const running = computed(() => Boolean(run.value && !run.value.finished))
+const composerRef = ref<InstanceType<typeof Composer> | null>(null)
+/** So vale a pena oferecer retomada quando sobrou trabalho: sessao concluida e sem pendencia nao vira cartaz. */
+const retomada = computed(() => {
+  const r = running.value ? null : sessions.resume(props.id)
+  if (!r) return null
+  return r.resume.status === 'concluida' && r.resume.pendencias.length === 0 ? null : r
+})
+const mostrarRetomada = ref(true)
+
+watch(
+  () => props.id,
+  () => {
+    mostrarRetomada.value = true
+  },
+)
+
+/** Continua de onde parou: joga o proximo passo no composer, sem enviar, para voce ajustar antes. */
+function continuar(): void {
+  const r = retomada.value
+  if (!r) return
+  const passo = r.resume.proximo_passo || r.resume.pendencias[0] || ''
+  composerRef.value?.inserir(passo ? `Continue de onde paramos: ${passo}` : 'Continue de onde paramos.')
+  mostrarRetomada.value = false
+}
 
 onMounted(load)
 watch(() => props.id, load)
@@ -97,7 +121,25 @@ function scrollDown(): void {
       <Timeline :items="items" :session-id="id" />
       <div v-if="running" class="working"><span class="pulse" data-status="running"></span> trabalhando</div>
     </div>
+    <div v-if="retomada && mostrarRetomada" class="retomada">
+      <div class="retomada-topo">
+        <span class="retomada-titulo">De onde paramos</span>
+        <span class="chip" :class="{ auto: retomada.resume.status === 'concluida' }">{{ retomada.resume.status }}</span>
+        <span class="spacer"></span>
+        <button class="ghost small" @click="mostrarRetomada = false">Esconder</button>
+      </div>
+      <p class="retomada-tarefa">{{ retomada.resume.tarefa }}</p>
+      <p v-if="retomada.resume.proximo_passo" class="muted small">Proximo passo: {{ retomada.resume.proximo_passo }}</p>
+      <ul v-if="retomada.resume.pendencias.length" class="retomada-lista">
+        <li v-for="p in retomada.resume.pendencias" :key="p">{{ p }}</li>
+      </ul>
+      <p v-if="retomada.resume.arquivos.length" class="muted small">Arquivos: {{ retomada.resume.arquivos.join(', ') }}</p>
+      <div class="row">
+        <button class="primary small" @click="continuar">Continuar de onde parou</button>
+      </div>
+    </div>
     <Composer
+      ref="composerRef"
       :session="session"
       :agent="agent"
       :run="run"

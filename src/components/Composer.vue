@@ -270,6 +270,8 @@ function override(): void {
   const v = Number(overrideValue.value)
   if (Number.isFinite(v) && v > 0) emit('override', v)
 }
+
+defineExpose({ inserir: insert })
 </script>
 
 <template>

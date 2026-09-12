@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AutomationRun, ScheduleStatus, ServerFrame } from '@agent-hub/core'
+import type { AutomationRun, HookCatalogItem, ScheduleStatus, ServerFrame, WorkflowRunState } from '@agent-hub/core'
 import { onMounted, onUnmounted, ref } from 'vue'
 import { client } from '../daemon/client'
 import { useSessions } from '../stores/sessions'
@@ -21,6 +21,44 @@ const form = ref({
   day_usd: 0.5,
 })
 
+
+const ganchos = ref<HookCatalogItem[]>([])
+const extras = ref(0)
+const parados = ref<WorkflowRunState[]>([])
+
+async function loadGanchos(): Promise<void> {
+  try {
+    const res = await client.request({ type: 'hooks.list' }, 'hooks.list')
+    ganchos.value = res.catalog
+    extras.value = res.extras
+  } catch {
+    ganchos.value = []
+  }
+}
+
+async function ligarGancho(id: string, enabled: boolean): Promise<void> {
+  error.value = ''
+  try {
+    const res = await client.request({ type: 'hooks.toggle', id, enabled }, 'hooks.list')
+    ganchos.value = res.catalog
+    extras.value = res.extras
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : String(err)
+  }
+}
+
+async function loadParados(): Promise<void> {
+  try {
+    parados.value = (await client.request({ type: 'workflow.list' }, 'workflow.list')).pending
+  } catch {
+    parados.value = []
+  }
+}
+
+function continuar(runId: string): void {
+  client.send({ type: 'workflow.resume', run_id: runId })
+  parados.value = parados.value.filter((p) => p.runId !== runId)
+}
 async function load(): Promise<void> {
   error.value = ''
   try {
@@ -89,6 +127,8 @@ let off: (() => void) | null = null
 onMounted(() => {
   off = client.on(onFrame)
   void load()
+  void loadGanchos()
+  void loadParados()
 })
 onUnmounted(() => off?.())
 </script>
@@ -141,6 +181,36 @@ onUnmounted(() => off?.())
           </div>
         </li>
       </ul>
+      <div v-if="parados.length" class="bloco">
+        <h1 style="margin-top: 16px">Workflows parados no meio</h1>
+        <ul class="list">
+          <li v-for="p in parados" :key="p.runId">
+            <span class="tag">{{ p.status }}</span>
+            <strong>{{ p.name }}</strong>
+            <span class="muted small">proxima etapa {{ p.nextStep ?? '-' }}, ja gastou {{ p.costUsd.toFixed(4) }} USD</span>
+            <button class="primary small" @click="continuar(p.runId)">Continuar</button>
+          </li>
+        </ul>
+      </div>
+
+      <h1 style="margin-top: 16px">Ganchos prontos</h1>
+      <p class="muted small">
+        Comandos que o harness dispara sozinho em volta das ferramentas. Ligar escreve em agents/hooks.json;
+        desligar tira de la. {{ extras }} gancho(s) seu(s) fora deste catalogo continuam como estao.
+      </p>
+      <ul class="list">
+        <li v-for="g in ganchos" :key="g.id">
+          <div class="hook-linha">
+            <strong>{{ g.title }}</strong>
+            <span class="tag">{{ g.event }}</span>
+            <span v-if="g.tool" class="tag">{{ g.tool }}</span>
+            <span class="spacer"></span>
+            <button :class="{ primary: !g.enabled }" @click="ligarGancho(g.id, !g.enabled)">{{ g.enabled ? 'Desligar' : 'Ligar' }}</button>
+          </div>
+          <p class="muted small">{{ g.detail }}</p>
+        </li>
+      </ul>
+
       <h1 style="margin-top: 16px">Ultimas execucoes</h1>
       <ul class="list">
         <li v-for="r in runs" :key="r.id">

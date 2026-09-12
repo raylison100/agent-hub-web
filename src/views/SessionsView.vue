@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { RunMode, StatsOverview } from '@agent-hub/core'
+import type { HealthItem, RunMode, StatsOverview } from '@agent-hub/core'
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import Composer from '../components/Composer.vue'
@@ -23,6 +23,7 @@ onMounted(async () => {
   await connection.whenOnline()
   await sessions.loadAgents()
   await loadStats()
+  await loadHealth()
 })
 
 async function loadStats(): Promise<void> {
@@ -31,6 +32,16 @@ async function loadStats(): Promise<void> {
     stats.value = res.stats
   } catch {
     stats.value = null
+  }
+}
+
+const saude = ref<HealthItem[]>([])
+
+async function loadHealth(): Promise<void> {
+  try {
+    saude.value = (await client.request({ type: 'health.list' }, 'health.list')).items
+  } catch {
+    saude.value = []
   }
 }
 
@@ -138,6 +149,18 @@ async function send(text: string, reasoning: Reasoning | undefined, mode: RunMod
   <section class="home-view">
     <div class="home-center">
       <h1 class="home-greeting"><span class="spark">*</span> O que vem a seguir{{ greetingName }}?</h1>
+
+      <div v-if="saude.length && saude[0]!.level !== 'ok'" class="saude">
+        <div v-for="item in saude" :key="item.title" class="saude-item" :class="item.level">
+          <span class="saude-marca"></span>
+          <div class="saude-texto">
+            <strong>{{ item.title }}</strong>
+            <span class="muted small">{{ item.detail }}</span>
+            <span class="small">{{ item.action }}</span>
+          </div>
+          <button v-if="item.route" class="ghost small" @click="router.push(item.route)">Ver</button>
+        </div>
+      </div>
 
       <div class="stats-card" v-if="stats">
         <div class="stats-head">

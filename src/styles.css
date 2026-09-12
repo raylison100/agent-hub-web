@@ -2517,3 +2517,52 @@ tfoot td {
   align-items: center;
   gap: var(--space-2);
 }
+
+.saude {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-bottom: var(--space-3);
+  width: 100%;
+}
+
+.saude-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  border: 1px solid var(--border, #2c2f36);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  background: var(--panel, #1b1d23);
+}
+
+.saude-texto {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+
+.saude-marca {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--muted, #9aa0aa);
+  flex: none;
+}
+
+.saude-item.aviso .saude-marca {
+  background: #d8a13a;
+}
+
+.saude-item.erro .saude-marca {
+  background: #d86a6a;
+}
+
+.hook-linha {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+}

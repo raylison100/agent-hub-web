@@ -22,6 +22,7 @@ const grupos: { titulo: string; itens: { nome: string; rota: string }[] }[] = [
     itens: [
       { nome: 'Agentes', rota: '/settings/agentes' },
       { nome: 'Conectores', rota: '/settings/conectores' },
+      { nome: 'Contexto do projeto', rota: '/settings/contexto' },
       { nome: 'Skills', rota: '/settings/skills' },
       { nome: 'Plugins', rota: '/settings/plugins' },
     ],

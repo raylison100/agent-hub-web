@@ -412,6 +412,14 @@ export const useSessions = defineStore('sessions', () => {
       case 'compaction':
         t.push({ kind: 'info', text: `Compactacao (${event.mode}): ${event.before} para ${event.after} tokens estimados` })
         return
+      case 'workspace_context': {
+        const carregado = [...event.instructions, ...event.memories]
+        t.push({
+          kind: 'info',
+          text: `Contexto do projeto: ${carregado.length ? carregado.join(', ') : 'nada'} (${event.tokens} tokens)${event.ignored.length ? `. Fora: ${event.ignored.map((i) => `${i.name} (${i.reason})`).join(', ')}` : ''}`,
+        })
+        return
+      }
       case 'skills_loaded':
         t.push({ kind: 'info', text: `Skills: ${event.names.join(', ')}` })
         return

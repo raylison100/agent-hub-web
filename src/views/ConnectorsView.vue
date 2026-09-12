@@ -75,15 +75,14 @@ async function run(action: () => Promise<void>): Promise<void> {
   }
 }
 
-/** O estado que importa: sem agente usando, o conector nem precisa subir, e dizer so "nao conectado" confunde. */
+/** Tres estados que o usuario entende: conectado, desconectado por escolha dele, ou tentando e falhando. */
 function estado(s: Server): { texto: string; tom: string } {
-  if (!s.enabled) return { texto: 'Desligado', tom: 'off' }
+  if (!s.enabled) return { texto: 'Desconectado', tom: 'off' }
   if (s.connected) return { texto: 'Conectado', tom: 'on' }
   if (s.error) return { texto: 'Falhou', tom: 'error' }
   if (s.agents.length === 0) return { texto: 'Sem agente', tom: 'idle' }
   return { texto: 'Conectando...', tom: 'idle' }
 }
-
 async function importar(): Promise<void> {
   await run(async () => {
     const res = await client.request({ type: 'mcp.import', source: 'claude-code' }, 'mcp.saved', 30000)
@@ -104,22 +103,17 @@ async function adicionar(): Promise<void> {
   })
 }
 
+/** Conecta ou desconecta o servidor. Desconectar fica gravado no mcp.json, entao o daemon nao volta a subir sozinho. */
 async function alternar(s: Server): Promise<void> {
   await run(async () => {
     await client.request({ type: 'mcp.toggle', name: s.name, enabled: !s.enabled }, 'mcp.saved', 60000)
   })
 }
 
-
 /** Abre o fluxo de OAuth do servidor no navegador; o daemon guarda o token quando o provedor devolve. */
 function autorizar(nome: string): void {
   const base = typeof window === 'undefined' ? '' : window.location.origin.startsWith('http') ? window.location.origin : 'http://127.0.0.1:47311'
   window.open(`${base}/oauth/start?server=${encodeURIComponent(nome)}`, '_blank', 'noopener')
-}
-async function conectar(s: Server): Promise<void> {
-  await run(async () => {
-    await client.request({ type: 'mcp.connect', name: s.name }, 'mcp.saved', 60000)
-  })
 }
 
 /** Liga ou desliga o servidor para um agente, editando a lista tools.mcp do perfil. */
@@ -185,12 +179,11 @@ async function remover(): Promise<void> {
           <h2>{{ current.name }}</h2>
           <span class="tag" :data-state="estado(current).tom">{{ estado(current).texto }}</span>
           <span class="spacer"></span>
-          <button class="ghost small" :disabled="busy" @click="alternar(current)">{{ current.enabled ? 'Desligar' : 'Ligar' }}</button>
-          <button class="ghost small" :disabled="busy || !current.enabled" @click="conectar(current)">Conectar</button>
-          <button class="ghost small" :disabled="busy" @click="pendingRemove = current.name">Remover</button>
+          <button class="primary small" :disabled="busy" @click="alternar(current)">{{ current.enabled ? 'Desconectar' : 'Conectar' }}</button>
           <button v-if="current.oauth" class="ghost small" @click="autorizar(current.name)">
             {{ current.oauth === 'autorizado' ? 'Autorizar de novo' : 'Autorizar' }}
           </button>
+          <button class="ghost small" :disabled="busy" @click="pendingRemove = current.name">Remover</button>
         </div>
 
         <template v-if="current.url">

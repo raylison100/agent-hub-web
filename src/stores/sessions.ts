@@ -472,7 +472,9 @@ function routedText(event: Extract<RunEvent, { type: 'routed' }>): string {
   const head = `Roteado para ${event.agent} (${event.model}) por ${by}${event.intent ? `, intencao ${event.intent}` : ''}`
   const top = (event.ranking ?? []).filter((r) => r.excluded === undefined).slice(0, 3)
   if (top.length === 0) return head
-  return `${head}. Ranking: ${top.map((r) => `${r.agent} ${r.score.toFixed(2)}`).join(', ')}`
+  const escolhido = top[0]
+  const estimativa = escolhido && escolhido.estimatedUsd > 0 ? `. Chamada estimada em ${escolhido.estimatedUsd.toFixed(4)} USD com ${Math.round(escolhido.contextUse * 100)}% da janela` : ''
+  return `${head}${estimativa}. Ranking: ${top.map((r) => `${r.agent} ${r.score.toFixed(2)}`).join(', ')}`
 }
 
 function closeLive(t: TimelineItem[]): void {

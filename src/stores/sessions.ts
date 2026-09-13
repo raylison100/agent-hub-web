@@ -416,7 +416,7 @@ export const useSessions = defineStore('sessions', () => {
       case 'tools_selected':
         t.push({
           kind: 'info',
-          text: `Ferramentas: ${event.kept} enviadas neste pedido, ${event.dropped} deixadas de fora por nao caberem no teto de ${event.budget} tokens`,
+          text: `Ferramentas: ${event.kept} enviadas neste pedido${event.reused ? ', as mesmas da mensagem anterior' : ''}, ${event.dropped} deixadas de fora por nao caberem no teto de ${event.budget} tokens`,
         })
         return
       case 'mcp_skipped':
@@ -433,7 +433,7 @@ export const useSessions = defineStore('sessions', () => {
         const carregado = [...event.instructions, ...event.memories]
         t.push({
           kind: 'info',
-          text: `Contexto do projeto: ${carregado.length ? carregado.join(', ') : 'nada'} (${event.tokens} tokens)${event.ignored.length ? `. Fora: ${event.ignored.map((i) => `${i.name} (${i.reason})`).join(', ')}` : ''}`,
+          text: `Contexto do projeto: ${carregado.length ? carregado.join(', ') : 'nada'} (${event.tokens} tokens)${event.inHistory?.length ? `. Ja na conversa: ${event.inHistory.join(', ')}` : ''}${event.ignored.length ? `. Fora: ${event.ignored.map((i) => `${i.name} (${i.reason})`).join(', ')}` : ''}`,
         })
         return
       }
@@ -544,7 +544,7 @@ function fromMessages(messages: Message[]): TimelineItem[] {
   const t: TimelineItem[] = []
   for (const m of messages) {
     if (m.role === 'user') {
-      const raw = m.parts.map((p) => (p.type === 'text' ? p.text : '')).filter(Boolean).join('\n\n')
+      const raw = m.parts.map((p) => (p.type === 'text' && !p.context ? p.text : '')).filter(Boolean).join('\n\n')
       const original = /<pedido_original>\n([\s\S]*?)\n<\/pedido_original>/.exec(raw)
       const text = original ? original[1]! : raw
       const imagens = m.parts.filter((p) => p.type === 'image').map((p) => ({ mediaType: p.mediaType, data: p.data, ref: p.ref, name: p.name }))

@@ -401,6 +401,8 @@ export const useSessions = defineStore('sessions', () => {
         t.push({ kind: 'info', tone: 'warn', text: `Orcamento ${event.warning.scope}: ${event.warning.spentUsd.toFixed(4)} de ${event.warning.limitUsd.toFixed(4)} USD` })
         return
       case 'escalation':
+        closeLive(t)
+        run.agent = event.to
         t.push({ kind: 'info', tone: 'warn', text: `Escalado de ${event.from} para ${event.to}: ${event.reason}` })
         return
       case 'max_output_retry':
@@ -446,6 +448,13 @@ export const useSessions = defineStore('sessions', () => {
       case 'phase':
         run.phase = event.name
         t.push({ kind: 'info', text: `Fase ${event.index + 1}: ${event.name}` })
+        return
+      case 'verification':
+        t.push(
+          event.ok
+            ? { kind: 'info', text: `Verificacao de ${event.agent} passou${event.citations ? ` (${event.citations} citacoes conferidas)` : ''}` }
+            : { kind: 'info', tone: 'warn', text: `Verificacao de ${event.agent} falhou: ${event.failures.map((f) => f.reason).join('; ')}` },
+        )
         return
       case 'routed':
         run.agent = event.agent
@@ -514,7 +523,7 @@ export const useSessions = defineStore('sessions', () => {
 
 function routedText(event: Extract<RunEvent, { type: 'routed' }>): string {
   const by =
-    event.by === 'rule' ? 'regra' : event.by === 'classifier' ? 'classificador' : event.by === 'score' ? 'pontuacao' : event.by === 'default' ? 'padrao' : event.by
+    event.by === 'rule' ? 'regra' : event.by === 'classifier' ? 'classificador' : event.by === 'score' ? 'pontuacao' : event.by === 'default' ? 'padrao' : event.by === 'cascade' ? 'cascata' : event.by
   const head = `Roteado para ${event.agent} (${event.model}) por ${by}${event.intent ? `, intencao ${event.intent}` : ''}`
   const top = (event.ranking ?? []).filter((r) => r.excluded === undefined).slice(0, 3)
   if (top.length === 0) return head

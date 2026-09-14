@@ -9,6 +9,7 @@ import ConnectorsView from './views/ConnectorsView.vue'
 import CostView from './views/CostView.vue'
 import PluginsView from './views/PluginsView.vue'
 import SecretsView from './views/SecretsView.vue'
+import ShareView from './views/ShareView.vue'
 import SessionsView from './views/SessionsView.vue'
 import SettingsView from './views/SettingsView.vue'
 import SkillsView from './views/SkillsView.vue'
@@ -36,6 +37,7 @@ export const router = createRouter({
         { path: 'skills', name: 'skills', component: SkillsView },
         { path: 'plugins', name: 'plugins', component: PluginsView },
         { path: 'chaves', name: 'secrets', component: SecretsView },
+        { path: 'compartilhar', name: 'share', component: ShareView },
         { path: 'conexao', name: 'settings-connect', component: ConnectView },
       ],
     },

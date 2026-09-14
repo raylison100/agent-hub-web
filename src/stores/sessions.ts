@@ -541,7 +541,7 @@ export const useSessions = defineStore('sessions', () => {
 function routedText(event: Extract<RunEvent, { type: 'routed' }>): string {
   const by =
     event.by === 'rule' ? 'regra' : event.by === 'classifier' ? 'classificador' : event.by === 'score' ? 'pontuacao' : event.by === 'default' ? 'padrao' : event.by === 'cascade' ? 'cascata' : event.by
-  const head = `Roteado para ${event.agent} (${event.model}) por ${by}${event.intent ? `, intencao ${event.intent}` : ''}`
+  const head = `Roteado para ${event.agent} (${event.model}) por ${by}${event.intent ? `, intencao ${event.intent}` : ''}${event.role ? `, papel ${event.role} escolhido pelo pedido` : ''}`
   const top = (event.ranking ?? []).filter((r) => r.excluded === undefined).slice(0, 3)
   if (top.length === 0) return head
   const escolhido = top[0]

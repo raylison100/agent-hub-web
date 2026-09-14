@@ -2597,7 +2597,15 @@ tfoot td {
   flex-direction: column;
   gap: var(--space-1);
   margin-bottom: var(--space-3);
-  width: 100%;
+  width: min(620px, 100%);
+}
+
+.saude-fechar {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  line-height: 1;
 }
 
 .saude-item {

@@ -36,6 +36,34 @@ async function loadStats(): Promise<void> {
 }
 
 const saude = ref<HealthItem[]>([])
+const chaveDosFechados = 'agent-hub.avisos-fechados'
+const fechados = ref<string[]>(lerFechados())
+
+function lerFechados(): string[] {
+  try {
+    const valor = JSON.parse(localStorage.getItem(chaveDosFechados) ?? '[]') as unknown
+    return Array.isArray(valor) ? valor.map(String) : []
+  } catch {
+    return []
+  }
+}
+
+function assinaturaDoAviso(item: HealthItem): string {
+  return `${item.title}\n${item.detail}`
+}
+
+const avisos = computed(() => saude.value.filter((i) => i.level !== 'ok' && !fechados.value.includes(assinaturaDoAviso(i))))
+
+/** Esconde o aviso ate o conteudo dele mudar. */
+function fecharAviso(item: HealthItem): void {
+  const atuais = new Set(saude.value.map(assinaturaDoAviso))
+  fechados.value = [...fechados.value.filter((f) => atuais.has(f)), assinaturaDoAviso(item)]
+  try {
+    localStorage.setItem(chaveDosFechados, JSON.stringify(fechados.value))
+  } catch {
+    return
+  }
+}
 
 async function loadHealth(): Promise<void> {
   try {
@@ -150,8 +178,8 @@ async function send(text: string, reasoning: Reasoning | undefined, mode: RunMod
     <div class="home-center">
       <h1 class="home-greeting"><span class="spark">*</span> O que vem a seguir{{ greetingName }}?</h1>
 
-      <div v-if="saude.length && saude[0]!.level !== 'ok'" class="saude">
-        <div v-for="item in saude" :key="item.title" class="saude-item" :class="item.level">
+      <div v-if="avisos.length" class="saude">
+        <div v-for="item in avisos" :key="item.title" class="saude-item" :class="item.level">
           <span class="saude-marca"></span>
           <div class="saude-texto">
             <strong>{{ item.title }}</strong>
@@ -159,6 +187,7 @@ async function send(text: string, reasoning: Reasoning | undefined, mode: RunMod
             <span class="small">{{ item.action }}</span>
           </div>
           <button v-if="item.route" class="ghost small" @click="router.push(item.route)">Ver</button>
+          <button class="ghost small saude-fechar" type="button" title="Fechar este aviso" aria-label="Fechar este aviso" @click="fecharAviso(item)">x</button>
         </div>
       </div>
 

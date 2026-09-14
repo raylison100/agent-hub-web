@@ -348,7 +348,7 @@ export const useSessions = defineStore('sessions', () => {
           if (item.text === texto) return
           break
         }
-        t.push({ kind: 'user', text: texto, images: event.images.length ? event.images.map((i) => ({ mediaType: i.mediaType, name: i.name })) : undefined })
+        t.push({ kind: 'user', text: texto, images: event.images.length ? event.images.map((i) => ({ mediaType: i.mediaType, name: i.name, ref: i.ref })) : undefined })
         return
       }
       case 'text_delta': {

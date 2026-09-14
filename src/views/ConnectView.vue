@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import type { DeviceSummary } from '@agent-hub/core'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { disablePush, enablePush, pushState, testPush, type PushState } from '../push'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import InstallHelp from '../components/InstallHelp.vue'
 import { client } from '../daemon/client'
+import { isDesktop } from '../daemon/native-dialog'
 import { useConnection } from '../stores/connection'
 import { useSessions } from '../stores/sessions'
 
@@ -34,20 +36,60 @@ onMounted(async () => {
   await carregarDispositivos()
 })
 
+const semDaemon = ref(false)
+let procura: ReturnType<typeof setInterval> | undefined
+
+onUnmounted(() => clearInterval(procura))
+
+/** Se ha um daemon respondendo na porta local desta maquina. */
+async function daemonNoAr(): Promise<boolean> {
+  try {
+    const res = await fetch('http://127.0.0.1:47311/health', { signal: AbortSignal.timeout(1500) })
+    return res.ok
+  } catch {
+    return false
+  }
+}
+
 /** Primeira tentativa e sempre automatica: na propria maquina o daemon entrega o token e a tela nem aparece. */
 async function conectarSozinho(): Promise<void> {
   tentandoAuto.value = true
   try {
     if (await connection.pairLocal()) {
       await connect()
-      return
+      if (connection.status === 'online') {
+        pararProcura()
+        return
+      }
     }
   } catch {
     error.value = ''
   } finally {
     tentandoAuto.value = false
   }
-  manualAberto.value = true
+  semDaemon.value = isDesktop() && !(await daemonNoAr())
+  manualAberto.value = !semDaemon.value
+  if (semDaemon.value) {
+    error.value = ''
+    iniciarProcura()
+  }
+}
+
+/** No app de desktop sem daemon, confere a porta local de tempos em tempos e conecta assim que ele subir. */
+function iniciarProcura(): void {
+  if (procura) return
+  procura = setInterval(() => {
+    if (tentandoAuto.value || busy.value) return
+    void daemonNoAr().then((ok) => {
+      if (ok) void conectarSozinho()
+    })
+  }, 5000)
+}
+
+function pararProcura(): void {
+  clearInterval(procura)
+  procura = undefined
+  semDaemon.value = false
 }
 
 const senha = ref('')
@@ -186,15 +228,16 @@ function pick(id: string): void {
         Conectado em <strong>{{ connection.device || 'este computador' }}</strong> por <code>{{ connection.url }}</code>.
         Nesta maquina a conexao e automatica: o daemon serve a interface e entrega a credencial sozinho.
       </p>
+      <InstallHelp v-else-if="semDaemon" :tentando="tentandoAuto" @tentar="conectarSozinho" />
       <p v-else class="muted">
         Na propria maquina a conexao e automatica: abra <code>http://127.0.0.1:47311</code> e o daemon entrega a
         credencial sozinho. Os campos abaixo servem para outro dispositivo, celular ou acesso pelo relay.
       </p>
       <div class="row">
-        <button v-if="connection.status !== 'online'" class="primary" type="button" :disabled="busy" @click="conectarSozinho">
+        <button v-if="connection.status !== 'online' && !semDaemon" class="primary" type="button" :disabled="busy" @click="conectarSozinho">
           Tentar de novo nesta maquina
         </button>
-        <button type="button" @click="manualAberto = !manual">{{ manual ? 'Esconder conexao manual' : 'Conectar outro dispositivo' }}</button>
+        <button type="button" @click="manualAberto = !manual">{{ manual ? 'Esconder conexao manual' : semDaemon ? 'Conectar a um daemon de outra maquina' : 'Conectar outro dispositivo' }}</button>
       </div>
     </template>
     <form v-if="manual" @submit.prevent="connect">

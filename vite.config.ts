@@ -1,8 +1,14 @@
 import vue from '@vitejs/plugin-vue'
+import { readFileSync } from 'node:fs'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
+const versao = (JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string }).version
+
 export default defineConfig({
+  define: {
+    __VERSAO_DO_PACOTE__: JSON.stringify(versao),
+  },
   plugins: [
     vue(),
     VitePWA({

@@ -111,10 +111,10 @@ watch(running, async (agora) => {
 })
 
 /** Retoma o trabalho que parou no limite de gasto com um run novo e o limite escolhido. */
-async function continuarComLimite(limiteUsd: number): Promise<void> {
+async function continuarComLimite(limiteUsd: number, escopo: 'run' | 'session' | 'agent' | 'global'): Promise<void> {
   error.value = ''
   try {
-    await sessions.start(props.id, 'Continue de onde o run anterior parou no limite de gasto, sem refazer o que ja esta pronto.', undefined, session.value?.mode, undefined, false, undefined, limiteUsd)
+    await sessions.start(props.id, 'Continue de onde o run anterior parou no limite de gasto, sem refazer o que ja esta pronto.', undefined, session.value?.mode, undefined, false, undefined, limiteUsd, escopo)
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err)
   }

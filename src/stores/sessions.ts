@@ -194,6 +194,12 @@ export const useSessions = defineStore('sessions', () => {
     const emAndamento = sync.events.filter((e) => !finalizados.has(e.run_id) && (ativos === null || ativos.has(e.run_id)))
     const ultimo = sync.events.reduce((maior, e) => Math.max(maior, e.seq), lastSeq.get(sessionId) ?? 0)
     runs.delete(sessionId)
+    const ultimoFim = [...sync.events].reverse().find((e) => e.event.type === 'run_finished')
+    if (!emAndamento.length && ultimoFim && ultimoFim.event.type === 'run_finished') {
+      const fim = ultimoFim.event
+      runs.set(sessionId, { runId: ultimoFim.run_id, costUsd: fim.costUsd ?? 0, steps: fim.steps ?? 0, finished: true, stop: fim.stop, error: fim.error, lastInputTokens: 0 })
+      if (fim.stop !== 'end') timelines.get(sessionId)?.push({ kind: 'info', tone: fim.stop === 'cancelled' ? 'warn' : 'error', text: `Run terminou com ${fim.stop}${fim.error ? `: ${fim.error}` : ''}` })
+    }
     lastSeq.set(sessionId, emAndamento.length ? emAndamento[0]!.seq - 1 : ultimo)
     for (const e of emAndamento) applyEvent(sessionId, e.run_id, e.seq, e.event)
     lastSeq.set(sessionId, Math.max(lastSeq.get(sessionId) ?? 0, ultimo))
@@ -206,9 +212,9 @@ export const useSessions = defineStore('sessions', () => {
     return res.session
   }
 
-  async function start(sessionId: string, text: string, reasoning?: Reasoning, mode?: RunMode, agent?: string, improve?: boolean, images?: ImageAttachment[], runUsd?: number): Promise<string> {
+  async function start(sessionId: string, text: string, reasoning?: Reasoning, mode?: RunMode, agent?: string, improve?: boolean, images?: ImageAttachment[], runUsd?: number, budgetScope?: 'run' | 'session' | 'agent' | 'global'): Promise<string> {
     timeline(sessionId).push({ kind: 'user', text, images, local: true })
-    const res = await client.request({ type: 'run.start', session_id: sessionId, text, reasoning, mode, agent, improve, images: images?.filter((i) => i.data).map((i) => ({ media_type: i.mediaType, data: i.data!, name: i.name })), run_usd: runUsd }, 'run.started')
+    const res = await client.request({ type: 'run.start', session_id: sessionId, text, reasoning, mode, agent, improve, images: images?.filter((i) => i.data).map((i) => ({ media_type: i.mediaType, data: i.data!, name: i.name })), run_usd: runUsd, budget_scope: budgetScope }, 'run.started')
     runs.set(sessionId, { runId: res.run_id, costUsd: 0, steps: 0, finished: false, lastInputTokens: runs.get(sessionId)?.lastInputTokens ?? 0 })
     return res.run_id
   }

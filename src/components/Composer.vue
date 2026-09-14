@@ -78,7 +78,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   send: [text: string, reasoning: Reasoning | undefined, mode: RunMode, agent: string | undefined, improve: boolean, images: ImageAttachment[], role: string | undefined]
   cancel: []
-  override: [limit: number]
+  override: [limit: number, scope: 'run' | 'session' | 'agent' | 'global']
   'update:workspace': [value: string]
 }>()
 
@@ -271,6 +271,15 @@ const limiteAtual = computed(() => {
   return achado ? Number(achado[1]) : null
 })
 
+type EscopoDeLimite = 'run' | 'session' | 'agent' | 'global'
+
+const escopoDoLimite = computed<EscopoDeLimite>(() => {
+  const achado = /Orcamento de (run|session|agent|global) excedido/.exec(props.run?.error ?? '')
+  return (achado?.[1] as EscopoDeLimite | undefined) ?? 'run'
+})
+
+const nomeDoLimite = computed(() => ({ run: 'limite de gasto do run', session: 'limite de gasto da sessao', agent: 'limite de gasto do dia deste agente', global: 'limite de gasto do mes' })[escopoDoLimite.value])
+
 const limiteSugerido = computed(() => (limiteAtual.value ? Math.ceil(limiteAtual.value * 2 * 10) / 10 : 3))
 
 const limiteValido = computed(() => {
@@ -283,7 +292,7 @@ function override(): void {
   const v = Number(overrideValue.value || limiteSugerido.value)
   if (!Number.isFinite(v) || v <= 0) return
   overrideValue.value = ''
-  emit('override', v)
+  emit('override', v, escopoDoLimite.value)
 }
 
 defineExpose({ inserir: insert })
@@ -293,7 +302,7 @@ defineExpose({ inserir: insert })
   <footer class="composer">
     <p v-if="error" class="error">{{ error }}</p>
     <div v-if="run?.stop === 'budget_exceeded' && !running" class="row limite-row">
-      <span class="small muted">O run parou no limite de gasto{{ limiteAtual ? ` de ${limiteAtual.toFixed(2)} USD` : '' }}. Continuar com o limite de</span>
+      <span class="small muted">O run parou no {{ nomeDoLimite }}{{ limiteAtual ? ` (${limiteAtual.toFixed(2)} USD)` : '' }}. Continuar, so desta vez, com o limite de</span>
       <input v-model="overrideValue" type="number" step="0.1" min="0.1" :placeholder="limiteSugerido.toFixed(2)" aria-label="novo limite do run em USD" />
       <span class="small muted">USD</span>
       <button :disabled="!limiteValido" @click="override">Continuar</button>

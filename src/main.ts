@@ -3,6 +3,7 @@ import { createApp } from 'vue'
 import { registerSW } from 'virtual:pwa-register'
 import App from './App.vue'
 import { isDesktop } from './daemon/native-dialog'
+import { instalarLinksExternos } from './links-externos'
 import { router } from './router'
 import { aplicar, carregar } from './theme'
 import './styles.css'
@@ -19,5 +20,6 @@ async function dropServiceWorker(): Promise<void> {
 if (isDesktop()) void dropServiceWorker().catch(() => undefined)
 else registerSW({ immediate: true })
 
+instalarLinksExternos()
 aplicar(carregar())
 createApp(App).use(createPinia()).use(router).mount('#app')

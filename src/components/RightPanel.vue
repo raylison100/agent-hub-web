@@ -2,13 +2,34 @@
 import type { BackgroundTask } from '@agent-hub/core'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { client } from '../daemon/client'
+import { abrirExterno } from '../links-externos'
 import { useSessions } from '../stores/sessions'
+import { useVisualizacao } from '../stores/visualizacao'
 import TerminalPane from './TerminalPane.vue'
 import Timeline from './Timeline.vue'
 
 const props = defineProps<{ sessionId: string }>()
 const sessions = useSessions()
-const tab = ref<'subagents' | 'tarefas' | 'saidas' | 'terminal'>('subagents')
+const visualizacao = useVisualizacao()
+const tab = ref<'visualizar' | 'subagents' | 'tarefas' | 'saidas' | 'terminal'>('subagents')
+const arquivo = computed(() => (visualizacao.alvo && visualizacao.alvo.sessionId === props.sessionId ? visualizacao.alvo : null))
+const ehImagem = computed(() => /\.(png|jpe?g|gif|webp)$/i.test(arquivo.value?.caminho ?? ''))
+
+watch(
+  () => visualizacao.versao,
+  () => {
+    if (arquivo.value) tab.value = 'visualizar'
+  },
+)
+
+function abrirFora(): void {
+  if (arquivo.value) void abrirExterno(arquivo.value.url).catch(() => undefined)
+}
+
+function fecharVisualizacao(): void {
+  visualizacao.fechar()
+  tab.value = 'subagents'
+}
 const tarefas = ref<BackgroundTask[]>([])
 let timer: number | null = null
 
@@ -47,6 +68,7 @@ function quando(ts: number): string {
 <template>
   <aside class="panel-right">
     <div class="tabs">
+      <button v-if="arquivo" :class="{ active: tab === 'visualizar' }" @click="tab = 'visualizar'">Visualizar</button>
       <button :class="{ active: tab === 'subagents' }" @click="tab = 'subagents'">
         Subagentes <span v-if="running" class="badge">{{ running }}</span>
       </button>
@@ -90,6 +112,28 @@ function quando(ts: number): string {
       </div>
     </div>
 
+    <div v-else-if="tab === 'visualizar'" class="visualizar">
+      <template v-if="arquivo">
+        <div class="visualizar-barra">
+          <code class="small visualizar-caminho" :title="arquivo.caminho">{{ arquivo.caminho }}</code>
+          <button class="ghost small" type="button" title="Recarregar" @click="visualizacao.recarregar()">Recarregar</button>
+          <button class="ghost small" type="button" title="Abrir no navegador" @click="abrirFora">Abrir fora</button>
+          <button class="ghost small" type="button" title="Fechar" @click="fecharVisualizacao">x</button>
+        </div>
+        <img v-if="ehImagem" :key="`i${visualizacao.versao}`" class="visualizar-imagem" :src="`${arquivo.url}?v=${visualizacao.versao}`" :alt="arquivo.caminho" />
+        <iframe
+          v-else
+          :key="`f${visualizacao.versao}`"
+          class="visualizar-quadro"
+          :src="`${arquivo.url}?v=${visualizacao.versao}`"
+          sandbox="allow-scripts allow-downloads allow-popups allow-modals allow-forms"
+          referrerpolicy="no-referrer"
+          :title="arquivo.caminho"
+        ></iframe>
+      </template>
+      <p v-else class="muted small pad">Clique num arquivo citado na conversa (HTML, imagem, SVG ou PDF) para ver aqui.</p>
+    </div>
+
     <TerminalPane v-else-if="tab === 'terminal'" :session-id="sessionId" />
 
     <div v-else class="panel-scroll terminal">
@@ -101,3 +145,43 @@ function quando(ts: number): string {
     </div>
   </aside>
 </template>
+
+<style scoped>
+.visualizar {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.visualizar-barra {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.visualizar-caminho {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.visualizar-quadro {
+  flex: 1;
+  width: 100%;
+  border: 0;
+  background: #fff;
+}
+
+.visualizar-imagem {
+  display: block;
+  max-width: 100%;
+  margin: 8px auto;
+  object-fit: contain;
+}
+</style>

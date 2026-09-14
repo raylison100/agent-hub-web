@@ -2410,6 +2410,17 @@ tfoot td {
   margin-top: auto;
 }
 
+.markdown code.arquivo-link {
+  cursor: pointer;
+  color: var(--accent);
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+
+.markdown code.arquivo-link:hover {
+  background: var(--accent-soft);
+}
+
 .aviso-versao {
   display: block;
   margin: 8px 8px 0;

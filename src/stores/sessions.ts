@@ -40,7 +40,7 @@ export interface SubagentItem {
 }
 
 export type TimelineItem =
-  | { kind: 'user'; text: string; images?: ImageAttachment[] }
+  | { kind: 'user'; text: string; images?: ImageAttachment[]; local?: boolean }
   | { kind: 'assistant'; text: string; live: boolean; runId?: string }
   | ToolItem
   | SubagentItem
@@ -203,7 +203,7 @@ export const useSessions = defineStore('sessions', () => {
   }
 
   async function start(sessionId: string, text: string, reasoning?: Reasoning, mode?: RunMode, agent?: string, improve?: boolean, images?: ImageAttachment[]): Promise<string> {
-    timeline(sessionId).push({ kind: 'user', text, images })
+    timeline(sessionId).push({ kind: 'user', text, images, local: true })
     const res = await client.request({ type: 'run.start', session_id: sessionId, text, reasoning, mode, agent, improve, images: images?.filter((i) => i.data).map((i) => ({ media_type: i.mediaType, data: i.data!, name: i.name })) }, 'run.started')
     runs.set(sessionId, { runId: res.run_id, costUsd: 0, steps: 0, finished: false, lastInputTokens: runs.get(sessionId)?.lastInputTokens ?? 0 })
     return res.run_id
@@ -334,6 +334,23 @@ export const useSessions = defineStore('sessions', () => {
     const t = nested ? sub.items : main
 
     switch (event.type) {
+      case 'user_message': {
+        if (nested) return
+        const original = /<pedido_original>\n([\s\S]*?)\n<\/pedido_original>/.exec(event.text)
+        const texto = original ? original[1]! : event.text
+        for (let i = t.length - 1; i >= 0; i--) {
+          const item = t[i]!
+          if (item.kind !== 'user') continue
+          if (item.local) {
+            delete item.local
+            return
+          }
+          if (item.text === texto) return
+          break
+        }
+        t.push({ kind: 'user', text: texto, images: event.images.length ? event.images.map((i) => ({ mediaType: i.mediaType, name: i.name })) : undefined })
+        return
+      }
       case 'text_delta': {
         const last = t[t.length - 1]
         if (last && last.kind === 'assistant' && last.live) last.text += event.delta

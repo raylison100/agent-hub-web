@@ -5,6 +5,7 @@ import RightPanel from './components/RightPanel.vue'
 import Sidebar from './components/Sidebar.vue'
 import { useConnection } from './stores/connection'
 import { useSessions } from './stores/sessions'
+import { useVisualizacao } from './stores/visualizacao'
 
 const connection = useConnection()
 const sessions = useSessions()
@@ -74,6 +75,16 @@ watch(
   },
 )
 const panelOpen = ref(true)
+const visualizacao = useVisualizacao()
+
+watch(
+  () => visualizacao.versao,
+  () => {
+    if (!visualizacao.alvo) return
+    panelOpen.value = true
+    larguraPainel.value = Math.max(larguraPainel.value, Math.min(760, Math.round(window.innerWidth * 0.42)))
+  },
+)
 
 onMounted(async () => {
   if (!connection.token) await connection.pairLocal()

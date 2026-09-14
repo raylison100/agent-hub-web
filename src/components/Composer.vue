@@ -249,7 +249,7 @@ function compact(n: number): string {
 
 function submit(): void {
   const value = text.value.trim()
-  if ((!value && attachments.value.length === 0 && images.value.length === 0) || props.running) return
+  if (!value && attachments.value.length === 0 && images.value.length === 0) return
   const blocks = attachments.value.map((a) => a.text)
   const full = [value || 'Considere os anexos.', ...blocks].join('\n\n')
   const sent = images.value
@@ -404,7 +404,14 @@ defineExpose({ inserir: insert })
           </div>
         </div>
         <button v-if="running" class="ghost" @click="$emit('cancel')">Parar</button>
-        <button class="primary" :disabled="running || (!text.trim() && !attachments.length && !images.length)" @click="submit">Enviar</button>
+        <button
+          class="primary"
+          :disabled="!text.trim() && !attachments.length && !images.length"
+          :title="running ? 'Entra na fila e vai sozinha quando o run atual terminar' : ''"
+          @click="submit"
+        >
+          {{ running ? 'Enfileirar' : 'Enviar' }}
+        </button>
       </div>
     </div>
   </footer>

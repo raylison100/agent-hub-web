@@ -71,8 +71,51 @@ async function load(): Promise<void> {
   }
 }
 
+interface Pendente {
+  value: string
+  reasoning?: Reasoning
+  mode?: RunMode
+  agent?: string
+  improve?: boolean
+  images?: ImageAttachment[]
+}
+
+const filas = new Map<string, Pendente[]>()
+const versaoDaFila = ref(0)
+const fila = computed(() => {
+  void versaoDaFila.value
+  return filas.get(props.id) ?? []
+})
+
+/** Guarda a mensagem enviada durante um run e manda quando ele terminar, na ordem. */
+function enfileirar(p: Pendente): void {
+  filas.set(props.id, [...(filas.get(props.id) ?? []), p])
+  versaoDaFila.value++
+}
+
+function tirarDaFila(i: number): void {
+  const atual = [...(filas.get(props.id) ?? [])]
+  atual.splice(i, 1)
+  filas.set(props.id, atual)
+  versaoDaFila.value++
+}
+
+watch(running, async (agora) => {
+  if (agora) return
+  const atual = filas.get(props.id) ?? []
+  const proxima = atual[0]
+  if (!proxima) return
+  filas.set(props.id, atual.slice(1))
+  versaoDaFila.value++
+  await send(proxima.value, proxima.reasoning, proxima.mode, proxima.agent, proxima.improve, proxima.images)
+})
+
 async function send(value: string, reasoning: Reasoning | undefined, mode?: RunMode, agent?: string, improve?: boolean, images?: ImageAttachment[]): Promise<void> {
   error.value = ''
+  if (running.value) {
+    enfileirar({ value, reasoning, mode, agent, improve, images })
+    return
+  }
   try {
     await sessions.start(props.id, await expand(value), reasoning, mode, agent, improve, images)
   } catch (err) {
@@ -136,6 +179,13 @@ function scrollDown(): void {
       <p v-if="retomada.resume.arquivos.length" class="muted small">Arquivos: {{ retomada.resume.arquivos.join(', ') }}</p>
       <div class="row">
         <button class="primary small" @click="continuar">Continuar de onde parou</button>
+      </div>
+    </div>
+    <div v-if="fila.length" class="fila-de-envio">
+      <div v-for="(p, i) in fila" :key="i" class="fila-item small">
+        <span class="muted">Na fila, vai quando o run terminar:</span>
+        <span class="fila-texto">{{ p.value }}</span>
+        <button class="ghost small" type="button" title="Tirar da fila" @click="tirarDaFila(i)">x</button>
       </div>
     </div>
     <Composer

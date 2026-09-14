@@ -206,9 +206,9 @@ export const useSessions = defineStore('sessions', () => {
     return res.session
   }
 
-  async function start(sessionId: string, text: string, reasoning?: Reasoning, mode?: RunMode, agent?: string, improve?: boolean, images?: ImageAttachment[]): Promise<string> {
+  async function start(sessionId: string, text: string, reasoning?: Reasoning, mode?: RunMode, agent?: string, improve?: boolean, images?: ImageAttachment[], runUsd?: number): Promise<string> {
     timeline(sessionId).push({ kind: 'user', text, images, local: true })
-    const res = await client.request({ type: 'run.start', session_id: sessionId, text, reasoning, mode, agent, improve, images: images?.filter((i) => i.data).map((i) => ({ media_type: i.mediaType, data: i.data!, name: i.name })) }, 'run.started')
+    const res = await client.request({ type: 'run.start', session_id: sessionId, text, reasoning, mode, agent, improve, images: images?.filter((i) => i.data).map((i) => ({ media_type: i.mediaType, data: i.data!, name: i.name })), run_usd: runUsd }, 'run.started')
     runs.set(sessionId, { runId: res.run_id, costUsd: 0, steps: 0, finished: false, lastInputTokens: runs.get(sessionId)?.lastInputTokens ?? 0 })
     return res.run_id
   }

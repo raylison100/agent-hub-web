@@ -2418,6 +2418,18 @@ tfoot td {
   border-left: 0;
 }
 
+.limite-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.limite-row input {
+  width: 96px;
+}
+
 .carregando-imagem {
   display: inline-flex;
   align-items: center;

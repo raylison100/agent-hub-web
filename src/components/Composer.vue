@@ -266,9 +266,24 @@ function onKey(e: KeyboardEvent): void {
   }
 }
 
+const limiteAtual = computed(() => {
+  const achado = /de\s+([\d.]+)\s+USD/.exec(props.run?.error ?? '')
+  return achado ? Number(achado[1]) : null
+})
+
+const limiteSugerido = computed(() => (limiteAtual.value ? Math.ceil(limiteAtual.value * 2 * 10) / 10 : 3))
+
+const limiteValido = computed(() => {
+  const v = Number(overrideValue.value || limiteSugerido.value)
+  return Number.isFinite(v) && v > 0
+})
+
+/** Abre um run novo na sessao com o limite escolhido, pedindo para continuar de onde o anterior parou. */
 function override(): void {
-  const v = Number(overrideValue.value)
-  if (Number.isFinite(v) && v > 0) emit('override', v)
+  const v = Number(overrideValue.value || limiteSugerido.value)
+  if (!Number.isFinite(v) || v <= 0) return
+  overrideValue.value = ''
+  emit('override', v)
 }
 
 defineExpose({ inserir: insert })
@@ -277,9 +292,11 @@ defineExpose({ inserir: insert })
 <template>
   <footer class="composer">
     <p v-if="error" class="error">{{ error }}</p>
-    <div v-if="run?.stop === 'budget_exceeded'" class="row">
-      <input v-model="overrideValue" type="number" step="0.1" min="0" placeholder="novo limite do run em USD" />
-      <button @click="override">Subir limite e continuar</button>
+    <div v-if="run?.stop === 'budget_exceeded' && !running" class="row limite-row">
+      <span class="small muted">O run parou no limite de gasto{{ limiteAtual ? ` de ${limiteAtual.toFixed(2)} USD` : '' }}. Continuar com o limite de</span>
+      <input v-model="overrideValue" type="number" step="0.1" min="0.1" :placeholder="limiteSugerido.toFixed(2)" aria-label="novo limite do run em USD" />
+      <span class="small muted">USD</span>
+      <button :disabled="!limiteValido" @click="override">Continuar</button>
     </div>
     <div class="composer-box">
       <div v-if="attachments.length" class="attachments">

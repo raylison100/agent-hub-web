@@ -110,6 +110,16 @@ watch(running, async (agora) => {
   await send(proxima.value, proxima.reasoning, proxima.mode, proxima.agent, proxima.improve, proxima.images)
 })
 
+/** Retoma o trabalho que parou no limite de gasto com um run novo e o limite escolhido. */
+async function continuarComLimite(limiteUsd: number): Promise<void> {
+  error.value = ''
+  try {
+    await sessions.start(props.id, 'Continue de onde o run anterior parou no limite de gasto, sem refazer o que ja esta pronto.', undefined, session.value?.mode, undefined, false, undefined, limiteUsd)
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : String(err)
+  }
+}
+
 async function send(value: string, reasoning: Reasoning | undefined, mode?: RunMode, agent?: string, improve?: boolean, images?: ImageAttachment[]): Promise<void> {
   error.value = ''
   if (running.value) {
@@ -197,7 +207,7 @@ function scrollDown(): void {
       :error="error"
       @send="send"
       @cancel="sessions.cancel(props.id)"
-      @override="(v) => sessions.override(props.id, 'run', v)"
+      @override="continuarComLimite"
     />
   </section>
 </template>

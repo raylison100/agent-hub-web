@@ -29,10 +29,15 @@ export function enderecoDoArquivo(sessionId: string, relativo: string): string {
 export const useVisualizacao = defineStore('visualizacao', () => {
   const alvo = ref<{ sessionId: string; caminho: string; url: string } | null>(null)
   const versao = ref(0)
+  const telaCheia = ref(false)
 
   function abrir(sessionId: string, caminho: string, url: string): void {
     alvo.value = { sessionId, caminho, url }
     versao.value++
+  }
+
+  function alternarTelaCheia(): void {
+    telaCheia.value = !telaCheia.value
   }
 
   function recarregar(): void {
@@ -41,7 +46,8 @@ export const useVisualizacao = defineStore('visualizacao', () => {
 
   function fechar(): void {
     alvo.value = null
+    telaCheia.value = false
   }
 
-  return { alvo, versao, abrir, recarregar, fechar }
+  return { alvo, versao, telaCheia, abrir, recarregar, alternarTelaCheia, fechar }
 })

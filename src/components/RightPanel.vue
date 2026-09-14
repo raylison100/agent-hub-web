@@ -75,6 +75,13 @@ async function carregarTarefas(): Promise<void> {
   }
 }
 
+function sairDaTelaCheia(e: KeyboardEvent): void {
+  if (e.key === 'Escape' && visualizacao.telaCheia) visualizacao.alternarTelaCheia()
+}
+
+onMounted(() => window.addEventListener('keydown', sairDaTelaCheia))
+onBeforeUnmount(() => window.removeEventListener('keydown', sairDaTelaCheia))
+
 onMounted(() => {
   void carregarTarefas()
   timer = window.setInterval(() => void carregarTarefas(), 5000)
@@ -146,6 +153,9 @@ function quando(ts: number): string {
         <div class="visualizar-barra">
           <code class="small visualizar-caminho" :title="arquivo.caminho">{{ arquivo.caminho }}</code>
           <button class="ghost small" type="button" title="Recarregar" @click="visualizacao.recarregar()">Recarregar</button>
+          <button class="ghost small" type="button" :title="visualizacao.telaCheia ? 'Voltar para o painel lateral' : 'Ver em tela cheia'" @click="visualizacao.alternarTelaCheia()">
+            {{ visualizacao.telaCheia ? 'Reduzir' : 'Ampliar' }}
+          </button>
           <button class="ghost small" type="button" title="Abrir no navegador" @click="abrirFora">Abrir fora</button>
           <button class="ghost small" type="button" title="Fechar" @click="fecharVisualizacao">x</button>
         </div>

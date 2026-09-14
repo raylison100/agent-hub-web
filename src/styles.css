@@ -2431,6 +2431,11 @@ tfoot td {
   border-radius: var(--radius-sm);
 }
 
+.painel-flutuante .visualizar-imagem {
+  max-height: calc(100vh - 64px);
+  width: auto;
+}
+
 .fila-de-envio {
   display: grid;
   gap: 4px;

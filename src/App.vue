@@ -36,13 +36,19 @@ const estiloShell = computed(() => ({
   '--w-panel': `${larguraPainel.value}px`,
 }))
 
+/** Largura maxima do painel lateral: tudo menos a barra lateral e um minimo legivel para o chat. */
+function larguraMaximaDoPainel(): number {
+  const barra = sidebarOpen.value && !inSettings.value ? larguraBarra.value : 0
+  return Math.max(280, window.innerWidth - barra - 360)
+}
+
 /** Arrasta a divisoria e guarda a largura escolhida, para o painel nao mudar de tamanho sozinho ao trocar de aba. */
 function iniciarArrasto(qual: 'barra' | 'painel', e: PointerEvent): void {
   arrastando.value = qual
   const alvo = e.currentTarget as HTMLElement
   alvo.setPointerCapture(e.pointerId)
   const mover = (ev: PointerEvent) => {
-    if (qual === 'painel') larguraPainel.value = Math.min(760, Math.max(280, window.innerWidth - ev.clientX))
+    if (qual === 'painel') larguraPainel.value = Math.min(larguraMaximaDoPainel(), Math.max(280, window.innerWidth - ev.clientX))
     else larguraBarra.value = Math.min(460, Math.max(190, ev.clientX))
   }
   const soltar = () => {
@@ -82,7 +88,7 @@ watch(
   () => {
     if (!visualizacao.alvo) return
     panelOpen.value = true
-    larguraPainel.value = Math.max(larguraPainel.value, Math.min(760, Math.round(window.innerWidth * 0.42)))
+    larguraPainel.value = Math.min(larguraMaximaDoPainel(), Math.max(larguraPainel.value, Math.round(window.innerWidth * 0.42)))
   },
 )
 
@@ -134,8 +140,8 @@ onMounted(async () => {
       title="Arraste para mudar a largura"
       @pointerdown.prevent="iniciarArrasto('barra', $event)"
     ></div>
-    <RightPanel v-if="panelOpen && route.name === 'chat' && !estreito" :session-id="String(route.params.id ?? '')" />
-    <RightPanel v-else-if="estreito && route.name === 'chat' && visualizacao.alvo" class="painel-flutuante" :session-id="String(route.params.id ?? '')" />
+    <RightPanel v-if="route.name === 'chat' && visualizacao.alvo && (estreito || visualizacao.telaCheia)" class="painel-flutuante" :session-id="String(route.params.id ?? '')" />
+    <RightPanel v-else-if="panelOpen && route.name === 'chat' && !estreito" :session-id="String(route.params.id ?? '')" />
     <div v-if="sessions.approvals.length" class="approval-dock">
       <div v-for="a in sessions.approvals" :key="a.id" class="approval">
         <div class="approval-head">

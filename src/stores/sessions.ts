@@ -181,18 +181,22 @@ export const useSessions = defineStore('sessions', () => {
   }
 
   async function open(sessionId: string): Promise<void> {
-    const res = await client.request({ type: 'session.get', session_id: sessionId }, 'session.get')
-    const live = runs.get(sessionId)
-    const keepLocal = live !== undefined && !live.finished && (timelines.get(sessionId)?.length ?? 0) > 0
-    if (!keepLocal) timelines.set(sessionId, withChildren(fromMessages(res.messages), res.children ?? []))
+    const [res, sync] = await Promise.all([
+      client.request({ type: 'session.get', session_id: sessionId }, 'session.get'),
+      client.request({ type: 'sync', session_id: sessionId, since_seq: 0 }, 'sync'),
+    ])
+    timelines.set(sessionId, withChildren(fromMessages(res.messages), res.children ?? []))
     resumes.value.set(sessionId, res.resume ?? null)
     if (!terminal.has(sessionId)) terminal.set(sessionId, [])
     void loadFeedback(sessionId)
-    const since = lastSeq.get(sessionId)
-    if (since !== undefined) {
-      const sync = await client.request({ type: 'sync', session_id: sessionId, since_seq: since }, 'sync')
-      for (const e of sync.events) applyEvent(sessionId, e.run_id, e.seq, e.event)
-    }
+    const finalizados = new Set(sync.events.filter((e) => e.event.type === 'run_finished').map((e) => e.run_id))
+    const ativos = sync.active_run_ids ? new Set(sync.active_run_ids) : null
+    const emAndamento = sync.events.filter((e) => !finalizados.has(e.run_id) && (ativos === null || ativos.has(e.run_id)))
+    const ultimo = sync.events.reduce((maior, e) => Math.max(maior, e.seq), lastSeq.get(sessionId) ?? 0)
+    runs.delete(sessionId)
+    lastSeq.set(sessionId, emAndamento.length ? emAndamento[0]!.seq - 1 : ultimo)
+    for (const e of emAndamento) applyEvent(sessionId, e.run_id, e.seq, e.event)
+    lastSeq.set(sessionId, Math.max(lastSeq.get(sessionId) ?? 0, ultimo))
     void loadCostStatus()
   }
 

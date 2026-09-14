@@ -629,9 +629,23 @@ function lines(text: string): number {
   return text === '' ? 0 : text.split('\n').length
 }
 
-/** Endereco da imagem: o base64 quando ainda esta na memoria, ou a rota do daemon quando ja foi para o banco. */
+const midias = reactive(new Map<string, string>())
+const buscando = new Set<string>()
+
+/** Endereco da imagem: o base64 quando ainda esta na memoria, ou a midia gravada buscada pelo protocolo, que funciona no desktop e pelo relay. */
 export function imageSrc(img: ImageAttachment): string {
   if (img.data) return `data:${img.mediaType};base64,${img.data}`
-  const base = typeof window !== 'undefined' && window.location.origin.startsWith('http') ? window.location.origin : 'http://127.0.0.1:47311'
-  return img.ref ? `${base}/media/${img.ref}` : ''
+  if (!img.ref) return ''
+  const pronta = midias.get(img.ref)
+  if (pronta) return pronta
+  if (!buscando.has(img.ref)) {
+    const ref = img.ref
+    buscando.add(ref)
+    void client
+      .request({ type: 'midia.ler', ref }, 'midia.conteudo', 60000)
+      .then((m) => midias.set(ref, `data:${m.media_type};base64,${m.data}`))
+      .catch(() => undefined)
+      .finally(() => buscando.delete(ref))
+  }
+  return ''
 }

@@ -2418,6 +2418,19 @@ tfoot td {
   border-left: 0;
 }
 
+.carregando-imagem {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 96px;
+  min-height: 72px;
+  padding: 6px;
+  font-size: 11px;
+  color: var(--muted);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+}
+
 .fila-de-envio {
   display: grid;
   gap: 4px;

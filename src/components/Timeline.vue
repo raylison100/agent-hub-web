@@ -37,7 +37,10 @@ const blocks = computed<Block[]>(() => {
     <template v-else>
       <div v-if="block.item.kind === 'user'" class="bubble user">
         <div v-if="block.item.images?.length" class="image-strip">
-          <img v-for="(img, i) in block.item.images" :key="i" class="sent-image" :src="imageSrc(img)" :alt="img.name ?? 'imagem'" />
+          <template v-for="(img, i) in block.item.images" :key="i">
+            <img v-if="imageSrc(img)" class="sent-image" :src="imageSrc(img)" :alt="img.name ?? 'imagem'" />
+            <span v-else class="sent-image carregando-imagem">{{ img.name ?? 'imagem' }}</span>
+          </template>
         </div>
         <pre>{{ block.item.text }}</pre>
       </div>

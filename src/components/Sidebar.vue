@@ -3,6 +3,7 @@ import type { SessionSummary } from '@agent-hub/core'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { client } from '../daemon/client'
+import { useAtualizacoes } from '../stores/atualizacoes'
 import { useConnection } from '../stores/connection'
 import { useSessions } from '../stores/sessions'
 import ConfirmDialog from './ConfirmDialog.vue'
@@ -25,8 +26,10 @@ const novoGrupo = ref<string | null>(null)
 const menuLista = ref<{ x: number; y: number } | null>(null)
 const menuUsuario = ref<{ x: number; y: number } | null>(null)
 const usuario = ref('')
+const atualizacoes = useAtualizacoes()
 
 onMounted(async () => {
+  void atualizacoes.verificar()
   try {
     await connection.whenOnline()
     usuario.value = (await client.request({ type: 'stats.overview', days: 1 }, 'stats.overview', 15000)).stats.user
@@ -381,6 +384,9 @@ async function commitRename(): Promise<void> {
       <p v-if="!visible.length" class="muted small pad">Nenhuma sessao.</p>
     </div>
     <div class="user-area">
+      <RouterLink v-if="atualizacoes.temNovidade" to="/settings/atualizacoes" class="aviso-versao">
+        Versao nova disponivel{{ atualizacoes.appNova ? `: ${atualizacoes.appNova.versao}` : atualizacoes.daemon?.ultima ? `: ${atualizacoes.daemon.ultima}` : '' }}
+      </RouterLink>
       <button class="user-bar" @click="abrirMenuUsuario">
         <span class="avatar">{{ nomeUsuario.charAt(0) }}</span>
         <span class="user-nome">{{ nomeUsuario }}</span>

@@ -2410,6 +2410,21 @@ tfoot td {
   margin-top: auto;
 }
 
+.aviso-versao {
+  display: block;
+  margin: 8px 8px 0;
+  padding: 6px 9px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  color: var(--text);
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.aviso-versao:hover {
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
+}
+
 .user-bar:hover {
   background: var(--panel-2);
   border-color: var(--border);

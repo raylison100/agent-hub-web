@@ -2410,6 +2410,14 @@ tfoot td {
   margin-top: auto;
 }
 
+.panel-right.painel-flutuante {
+  display: flex;
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  border-left: 0;
+}
+
 .fila-de-envio {
   display: grid;
   gap: 4px;

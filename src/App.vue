@@ -135,6 +135,7 @@ onMounted(async () => {
       @pointerdown.prevent="iniciarArrasto('barra', $event)"
     ></div>
     <RightPanel v-if="panelOpen && route.name === 'chat' && !estreito" :session-id="String(route.params.id ?? '')" />
+    <RightPanel v-else-if="estreito && route.name === 'chat' && visualizacao.alvo" class="painel-flutuante" :session-id="String(route.params.id ?? '')" />
     <div v-if="sessions.approvals.length" class="approval-dock">
       <div v-for="a in sessions.approvals" :key="a.id" class="approval">
         <div class="approval-head">

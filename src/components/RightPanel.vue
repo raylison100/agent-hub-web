@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import type { BackgroundTask } from '@agent-hub/core'
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { client } from '../daemon/client'
 import { abrirExterno } from '../links-externos'
 import { useSessions } from '../stores/sessions'
-import { useVisualizacao } from '../stores/visualizacao'
+import { enderecoDoArquivo, useVisualizacao } from '../stores/visualizacao'
 import TerminalPane from './TerminalPane.vue'
 import Timeline from './Timeline.vue'
 
@@ -13,13 +13,42 @@ const sessions = useSessions()
 const visualizacao = useVisualizacao()
 const tab = ref<'visualizar' | 'subagents' | 'tarefas' | 'saidas' | 'terminal'>('subagents')
 const arquivo = computed(() => (visualizacao.alvo && visualizacao.alvo.sessionId === props.sessionId ? visualizacao.alvo : null))
-const ehImagem = computed(() => /\.(png|jpe?g|gif|webp)$/i.test(arquivo.value?.caminho ?? ''))
+const conteudo = reactive<{ carregando: boolean; erro: string; imagem: string; html: string | null; pdf: string }>({ carregando: false, erro: '', imagem: '', html: null, pdf: '' })
+
+/** Busca o arquivo pelo canal do protocolo e monta a origem que o painel mostra, sem depender de o cliente alcancar o daemon por HTTP. */
+async function carregarArquivo(): Promise<void> {
+  const alvo = arquivo.value
+  if (conteudo.pdf) URL.revokeObjectURL(conteudo.pdf)
+  Object.assign(conteudo, { carregando: Boolean(alvo), erro: '', imagem: '', html: null, pdf: '' })
+  if (!alvo) return
+  try {
+    const lido = await client.request({ type: 'arquivo.ler', session_id: alvo.sessionId, path: alvo.caminho }, 'arquivo.conteudo', 60000)
+    if (arquivo.value !== alvo) return
+    if (lido.media_type.startsWith('image/') && !lido.media_type.includes('svg')) {
+      conteudo.imagem = `data:${lido.media_type};base64,${lido.data}`
+    } else if (lido.media_type === 'application/pdf') {
+      const bytes = Uint8Array.from(atob(lido.data), (c) => c.charCodeAt(0))
+      conteudo.pdf = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }))
+    } else {
+      const texto = new TextDecoder().decode(Uint8Array.from(atob(lido.data), (c) => c.charCodeAt(0)))
+      const pasta = alvo.caminho.includes('/') ? alvo.caminho.slice(0, alvo.caminho.lastIndexOf('/') + 1) : ''
+      const base = `<base href="${enderecoDoArquivo(alvo.sessionId, pasta)}">`
+      conteudo.html = /<head[^>]*>/i.test(texto) ? texto.replace(/<head[^>]*>/i, (h) => `${h}${base}`) : `${base}${texto}`
+    }
+  } catch (err) {
+    conteudo.erro = err instanceof Error ? err.message : String(err)
+  } finally {
+    conteudo.carregando = false
+  }
+}
 
 watch(
   () => visualizacao.versao,
   () => {
     if (arquivo.value) tab.value = 'visualizar'
+    void carregarArquivo()
   },
+  { immediate: true },
 )
 
 function abrirFora(): void {
@@ -120,16 +149,19 @@ function quando(ts: number): string {
           <button class="ghost small" type="button" title="Abrir no navegador" @click="abrirFora">Abrir fora</button>
           <button class="ghost small" type="button" title="Fechar" @click="fecharVisualizacao">x</button>
         </div>
-        <img v-if="ehImagem" :key="`i${visualizacao.versao}`" class="visualizar-imagem" :src="`${arquivo.url}?v=${visualizacao.versao}`" :alt="arquivo.caminho" />
+        <p v-if="conteudo.erro" class="error small pad">{{ conteudo.erro }}</p>
+        <p v-else-if="conteudo.carregando" class="muted small pad">Carregando...</p>
+        <img v-else-if="conteudo.imagem" class="visualizar-imagem" :src="conteudo.imagem" :alt="arquivo.caminho" />
         <iframe
-          v-else
-          :key="`f${visualizacao.versao}`"
+          v-else-if="conteudo.html !== null"
+          :key="`h${visualizacao.versao}`"
           class="visualizar-quadro"
-          :src="`${arquivo.url}?v=${visualizacao.versao}`"
+          :srcdoc="conteudo.html"
           sandbox="allow-scripts allow-downloads allow-popups allow-modals allow-forms"
           referrerpolicy="no-referrer"
           :title="arquivo.caminho"
         ></iframe>
+        <iframe v-else-if="conteudo.pdf" :key="`p${visualizacao.versao}`" class="visualizar-quadro" :src="conteudo.pdf" :title="arquivo.caminho"></iframe>
       </template>
       <p v-else class="muted small pad">Clique num arquivo citado na conversa (HTML, imagem, SVG ou PDF) para ver aqui.</p>
     </div>

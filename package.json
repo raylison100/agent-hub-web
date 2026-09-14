@@ -1,6 +1,6 @@
 {
   "name": "agent-hub-web",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Interface Vue 3 do Agent Hub como PWA para desktop, navegador e celular",
   "license": "PolyForm-Noncommercial-1.0.0",
   "author": "Raylison Nunes (https://github.com/raylison100)",

@@ -167,9 +167,10 @@ onUnmounted(() => desligar?.())
         </label>
         <div class="row">
           <button class="primary" type="submit" :disabled="ocupado">{{ atual.configurado ? 'Salvar e conferir' : 'Conferir e salvar' }}</button>
-          <span v-if="atual.conta" class="small">
-            conta <strong>{{ atual.conta }}</strong>
-            <a v-if="atual.link" :href="atual.link" target="_blank" rel="noopener">abrir o bot</a>
+          <span v-if="atual.conta" class="canal-conta">
+            <span class="muted small">conta</span>
+            <strong>{{ atual.conta }}</strong>
+            <a v-if="atual.link" class="canal-abrir" :href="atual.link" target="_blank" rel="noopener">Abrir o bot</a>
           </span>
         </div>
       </form>

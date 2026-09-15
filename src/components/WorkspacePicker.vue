@@ -93,7 +93,7 @@ async function browseNative(): Promise<void> {
     choose(dir)
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
-    error.value = message.includes('workspace nao permitido')
+    error.value = /workspace n(?:ã|a)o permitido/.test(message)
       ? `${message}`
       : message
   }

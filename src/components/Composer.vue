@@ -4,6 +4,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useSessions, type ImageAttachment, type Reasoning, type RunState } from '../stores/sessions'
 import PlusMenu, { type Attachment, type ImagemAnexada } from './PlusMenu.vue'
 import WorkspacePicker from './WorkspacePicker.vue'
+import Icone from './ui/Icone.vue'
 import { aberto, alternar, fechar } from '../popover'
 
 const showPlus = aberto('plus')
@@ -105,10 +106,9 @@ function toggleImprove(): void {
   }
 }
 
-const showAgent = aberto('agente')
+const showAjustes = aberto('agente')
 
 function pickAgent(name: string): void {
-  fechar('agente')
   if (!props.session) {
     pendingAgent.value = name === autoAgent ? '' : name
     return
@@ -131,30 +131,22 @@ function pickRole(name: string | null): void {
 
 const chosenRole = computed(() => (props.session ? props.session.role : pendingRole.value || null))
 
-const roleChip = computed(() => chosenRole.value ?? 'Sem papel')
+const roleChip = computed(() => chosenRole.value ?? 'Sem agente')
 
 const chosenAgent = computed(() => (props.session ? props.session.agent : pendingAgent.value || autoAgent))
-
-const agentChip = computed(() => {
-  const name = chosenAgent.value
-  if (name === autoAgent) return props.run?.model ? `Auto: ${props.run.model}` : 'Auto'
-  const profile = props.agent ?? sessions.agents.find((a) => a.name === name)
-  return profile ? `${profile.provider}/${profile.model}` : name
-})
 
 const sessions = useSessions()
 const text = ref('')
 const reasoning = ref<'' | Reasoning>('')
 const showUsage = aberto('uso')
-const showEffort = aberto('esforco')
 const showMode = aberto('modo')
 const overrideValue = ref('')
 
 const modes: { value: RunMode; label: string; detail: string }[] = [
-  { value: 'auto_approve', label: 'Automático', detail: 'Aprova tudo, exceto comandos destrutivos, que ainda perguntam' },
-  { value: 'normal', label: 'Manual', detail: 'Segue a política do perfil: pergunta antes de escrever e executar' },
-  { value: 'accept_edits', label: 'Aceitar edições', detail: 'Escreve arquivos sem perguntar; comandos ainda pedem aprovação' },
-  { value: 'draft', label: 'Planejar', detail: 'Só lê e propõe; nenhuma escrita nem execução' },
+  { value: 'auto_approve', label: 'Automático', detail: 'Faz tudo sozinho; só pergunta antes de algo que apaga ou não tem volta' },
+  { value: 'normal', label: 'Manual', detail: 'Pergunta antes de alterar arquivos ou rodar comandos' },
+  { value: 'accept_edits', label: 'Aceitar edições', detail: 'Altera arquivos sem perguntar; comandos ainda pedem aprovação' },
+  { value: 'draft', label: 'Planejar', detail: 'Só lê e propõe um plano; não altera nada' },
 ]
 
 const modeKey = 'agent-hub.mode.run'
@@ -214,6 +206,20 @@ const effortLabel = computed(() => {
   return levels.find((l) => l.value === current)?.label ?? current
 })
 
+const defaultEffortLabel = computed(() => {
+  const current = props.agent?.reasoning ?? 'medium'
+  return levels.find((l) => l.value === current)?.label ?? current
+})
+
+/** Resumo do que esta fora do padrao nos ajustes, para mostrar no proprio botao. */
+const ajustesResumo = computed(() => {
+  const partes: string[] = []
+  if (chosenAgent.value !== autoAgent) partes.push(chosenAgent.value)
+  if (reasoning.value) partes.push(effortLabel.value)
+  if (!improve.value) partes.push('sem melhorar')
+  return partes.join(', ')
+})
+
 const contextPct = computed(() => {
   const window = props.agent?.context_window ?? 0
   const used = props.run?.lastInputTokens ?? 0
@@ -221,14 +227,14 @@ const contextPct = computed(() => {
 })
 
 const bars = computed(() => {
-  const out: { label: string; value: number; limit: number | null; unit: string }[] = []
+  const out: { label: string; value: number; limit: number | null; unit: 'tokens' | 'USD' }[] = []
   const window = props.agent?.context_window ?? 0
-  out.push({ label: 'Janela de contexto', value: props.run?.lastInputTokens ?? 0, limit: window || null, unit: 'tokens' })
-  out.push({ label: 'Run atual', value: props.run?.costUsd ?? 0, limit: props.agent?.budget.run_usd ?? null, unit: 'USD' })
-  out.push({ label: 'Sessão', value: props.session?.costUsd ?? 0, limit: props.agent?.budget.session_usd ?? null, unit: 'USD' })
+  out.push({ label: 'Memória da conversa', value: props.run?.lastInputTokens ?? 0, limit: window || null, unit: 'tokens' })
+  out.push({ label: 'Esta tarefa', value: props.run?.costUsd ?? 0, limit: props.agent?.budget.run_usd ?? null, unit: 'USD' })
+  out.push({ label: 'Esta conversa', value: props.session?.costUsd ?? 0, limit: props.agent?.budget.session_usd ?? null, unit: 'USD' })
   const status = sessions.costStatus
   const agentStatus = props.agent ? status?.agents[props.agent.name] : undefined
-  out.push({ label: `Hoje, ${props.agent?.name ?? 'agente'}`, value: agentStatus?.todayUsd ?? 0, limit: agentStatus?.dayLimit ?? null, unit: 'USD' })
+  out.push({ label: 'Hoje neste modelo', value: agentStatus?.todayUsd ?? 0, limit: agentStatus?.dayLimit ?? null, unit: 'USD' })
   out.push({ label: 'Mês, todos os agentes', value: status?.monthUsd ?? 0, limit: status?.globalMonthLimit ?? null, unit: 'USD' })
   return out
 })
@@ -237,13 +243,19 @@ function pct(value: number, limit: number | null): number {
   return limit && limit > 0 ? Math.min(100, Math.round((value / limit) * 100)) : 0
 }
 
-function fmt(value: number, unit: string): string {
-  return unit === 'tokens' ? compact(value) : value.toFixed(4)
+function fmt(value: number, unit: 'tokens' | 'USD'): string {
+  return unit === 'tokens' ? compact(value) : usd(value)
+}
+
+/** Valor em dolar no formato brasileiro, com 4 casas para centavos fracionados. */
+function usd(value: number): string {
+  const casas = value > 0 && value < 0.01 ? 4 : 2
+  return `US$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas })}`
 }
 
 function compact(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`
-  if (n >= 1000) return `${Math.round(n / 1000)}k`
+  if (n >= 1_000_000) return `${(n / 1_000_000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} mi`
+  if (n >= 1000) return `${Math.round(n / 1000)} mil`
   return String(n)
 }
 
@@ -274,11 +286,11 @@ const limiteAtual = computed(() => {
 type EscopoDeLimite = 'run' | 'session' | 'agent' | 'global'
 
 const escopoDoLimite = computed<EscopoDeLimite>(() => {
-  const achado = /Orcamento de (run|session|agent|global) excedido/.exec(props.run?.error ?? '')
+  const achado = /Or(?:ç|c)amento de (run|session|agent|global) excedido/.exec(props.run?.error ?? '')
   return (achado?.[1] as EscopoDeLimite | undefined) ?? 'run'
 })
 
-const nomeDoLimite = computed(() => ({ run: 'limite de gasto do run', session: 'limite de gasto da sessão', agent: 'limite de gasto do dia deste agente', global: 'limite de gasto do mês' })[escopoDoLimite.value])
+const nomeDoLimite = computed(() => ({ run: 'limite de gasto por tarefa', session: 'limite de gasto da conversa', agent: 'limite diário deste modelo', global: 'limite de gasto do mês' })[escopoDoLimite.value])
 
 const limiteSugerido = computed(() => (limiteAtual.value ? Math.ceil(limiteAtual.value * 2 * 10) / 10 : 3))
 
@@ -302,22 +314,21 @@ defineExpose({ inserir: insert })
   <footer class="composer">
     <p v-if="error" class="error">{{ error }}</p>
     <div v-if="run?.stop === 'budget_exceeded' && !running" class="row limite-row">
-      <span class="small muted">O run parou no {{ nomeDoLimite }}{{ limiteAtual ? ` (${limiteAtual.toFixed(2)} USD)` : '' }}. Continuar, só desta vez, com o limite de</span>
-      <input v-model="overrideValue" type="number" step="0.1" min="0.1" :placeholder="limiteSugerido.toFixed(2)" aria-label="novo limite do run em USD" />
-      <span class="small muted">USD</span>
+      <span class="small muted">A tarefa parou porque chegou ao {{ nomeDoLimite }}{{ limiteAtual ? ` (${usd(limiteAtual)})` : '' }}. Para continuar só desta vez, use um limite de US$</span>
+      <input v-model="overrideValue" type="number" step="0.1" min="0.1" :placeholder="limiteSugerido.toFixed(2)" aria-label="Novo limite em dólares" />
       <button :disabled="!limiteValido" @click="override">Continuar</button>
     </div>
     <div class="composer-box">
       <div v-if="attachments.length" class="attachments">
         <span v-for="(a, i) in attachments" :key="i" class="chip attachment" :title="a.text.slice(0, 200)">
           {{ a.label }}
-          <button class="chip-x" type="button" @click="removeAttachment(i)">x</button>
+          <button class="chip-x" type="button" title="Remover" aria-label="Remover" @click="removeAttachment(i)"><Icone nome="fechar" :tamanho="12" /></button>
         </span>
       </div>
       <div v-if="images.length" class="image-strip">
         <span v-for="(img, i) in images" :key="i" class="image-thumb">
           <img :src="preview(img)" :alt="img.name ?? 'imagem'" />
-          <button class="chip-x" type="button" title="Remover" @click="removeImage(i)">x</button>
+          <button class="chip-x" type="button" title="Remover" aria-label="Remover" @click="removeImage(i)"><Icone nome="fechar" :tamanho="12" /></button>
         </span>
       </div>
       <p v-if="imageError" class="error small">{{ imageError }}</p>
@@ -325,120 +336,219 @@ defineExpose({ inserir: insert })
         ref="textarea"
         v-model="text"
         rows="3"
-        placeholder="Descreva uma tarefa ou faça uma pergunta"
+        placeholder="Escreva o que você precisa. Enter envia, Shift+Enter quebra linha"
         @keydown="onKey"
         @paste="onPaste"
         @drop="onDrop"
         @dragover.prevent
       ></textarea>
       <div class="composer-bar">
-        <WorkspacePicker v-if="!session" :model-value="workspace ?? ''" @update:model-value="(v: string) => emit('update:workspace', v)" />
-        <div class="popover-anchor">
-          <button class="chip-button plus" :disabled="!session && !workspace" title="Anexar, comandos, conectores" @click="alternar('plus')">+</button>
-          <PlusMenu
-            v-if="showPlus"
-            :session-id="session?.id"
-            :workspace="session ? undefined : workspace"
-            :agent="session?.agent ?? (pendingAgent || undefined)"
-            @attach="addAttachment"
-            @image="(i: ImagemAnexada) => images.push(i)"
-            @insert="insert"
-            @close="fechar('plus')"
-          />
-        </div>
-        <div class="popover-anchor">
-          <button class="chip-button mode-button" :data-mode="mode" @click="alternar('modo')">{{ modeLabel }}</button>
-          <div v-if="showMode" class="popover left">
-            <div class="popover-title">Modo</div>
-            <button v-for="(m, i) in modes" :key="m.value" class="mode-option" :class="{ active: m.value === mode }" @click="pickMode(m.value)">
-              <span class="mode-name">{{ m.label }} <span v-if="m.value === mode" class="check">v</span></span>
-              <span class="mode-detail">{{ m.detail }}</span>
-              <span class="menu-key">{{ i + 1 }}</span>
-            </button>
+        <div class="bar-grupo bar-esquerda">
+          <WorkspacePicker v-if="!session" :model-value="workspace ?? ''" @update:model-value="(v: string) => emit('update:workspace', v)" />
+          <div class="popover-anchor">
+            <button class="chip-button plus" :disabled="!session && !workspace" title="Anexar arquivos, comandos e conectores" @click="alternar('plus')">+</button>
+            <PlusMenu
+              v-if="showPlus"
+              :session-id="session?.id"
+              :workspace="session ? undefined : workspace"
+              :agent="session?.agent ?? (pendingAgent || undefined)"
+              @attach="addAttachment"
+              @image="(i: ImagemAnexada) => images.push(i)"
+              @insert="insert"
+              @close="fechar('plus')"
+            />
           </div>
-        </div>
-        <div class="popover-anchor">
-          <button class="chip-button" :class="{ auto: chosenAgent === 'auto' }" :title="agent?.description ?? 'o harness escolhe a cada mensagem'" @click="alternar('agente')">
-            {{ agentChip }}
-          </button>
-          <div v-if="showAgent" class="popover left">
-            <div class="popover-title">Agente desta sessão</div>
-            <button class="mode-option" :class="{ active: chosenAgent === 'auto' }" @click="pickAgent('auto')">
-              <span class="mode-name">Auto</span>
-              <span class="mode-detail">O harness escolhe a cada mensagem por regra, classificador ou padrão</span>
+          <div class="popover-anchor">
+            <button class="chip-button" :class="{ auto: chosenRole !== null }" title="Agente: qual agente responde" @click="alternar('papel')">
+              {{ roleChip }}
             </button>
-            <button v-for="a in sessions.agents" :key="a.name" class="mode-option" :class="{ active: chosenAgent === a.name }" @click="pickAgent(a.name)">
-              <span class="mode-name">{{ a.name }}</span>
-              <span class="mode-detail">{{ a.provider }}/{{ a.model }}, {{ a.description }}</span>
-            </button>
+            <div v-if="showRole" class="popover left">
+              <div class="popover-title">Qual agente responde</div>
+              <button class="mode-option" :class="{ active: chosenRole === null }" @click="pickRole(null)">
+                <span class="mode-name">Sem agente <span v-if="chosenRole === null" class="check"><Icone nome="check" :tamanho="12" /></span></span>
+                <span class="mode-detail">Usa só o modelo, sem instruções extras</span>
+              </button>
+              <button v-for="r in sessions.roles" :key="r.name" class="mode-option" :class="{ active: chosenRole === r.name }" @click="pickRole(r.name)">
+                <span class="mode-name">{{ r.name }} <span v-if="chosenRole === r.name" class="check"><Icone nome="check" :tamanho="12" /></span></span>
+                <span v-if="r.description" class="mode-detail">{{ r.description }}</span>
+              </button>
+              <p v-if="sessions.roles.length === 0" class="muted small pad">
+                Você ainda não tem agentes. <RouterLink to="/settings/agentes/novo" class="link" @click="fechar('papel')">Criar agente</RouterLink>
+              </p>
+            </div>
           </div>
-        </div>
-        <div class="popover-anchor">
-          <button class="chip-button" :class="{ auto: chosenRole !== null }" title="O papel define o prompt, as ferramentas e a política; o modelo continua sendo escolhido pelo harness" @click="alternar('papel')">
-            {{ roleChip }}
-          </button>
-          <div v-if="showRole" class="popover left">
-            <div class="popover-title">Papel desta sessão</div>
-            <button class="mode-option" :class="{ active: chosenRole === null }" @click="pickRole(null)">
-              <span class="mode-name">Sem papel</span>
-              <span class="mode-detail">O agente usa o próprio prompt e as próprias ferramentas</span>
-            </button>
-            <button v-for="r in sessions.roles" :key="r.name" class="mode-option" :class="{ active: chosenRole === r.name }" @click="pickRole(r.name)">
-              <span class="mode-name">{{ r.name }}</span>
-              <span class="mode-detail">{{ r.description }}. Modelos: {{ r.models.join(', ') }}</span>
-            </button>
-            <p v-if="sessions.roles.length === 0" class="muted small pad">Nenhum papel em agents/roles.</p>
-          </div>
-        </div>
-        <button class="chip-button" :class="{ auto: improve }" title="Um modelo barato reescreve seu pedido para o agente escolhido; o original fica registrado" @click="toggleImprove">
-          {{ improve ? 'Melhorar prompt: on' : 'Melhorar prompt: off' }}
-        </button>
-        <span v-if="run?.phase" class="chip">fase {{ run.phase }}</span>
-        <span class="spacer"></span>
-        <div class="popover-anchor">
-          <button class="chip-button" @click="alternar('esforco')">Esforço {{ effortLabel }}</button>
-          <div v-if="showEffort" class="popover">
-            <div class="popover-title">Esforço de raciocínio</div>
-            <div class="effort-scale">
-              <button
-                v-for="l in levels"
-                :key="l.value"
-                class="effort-step"
-                :class="{ active: (reasoning || agent?.reasoning) === l.value }"
-                @click="reasoning = l.value; fechar('esforco')"
-              >
-                {{ l.label }}
+          <div class="popover-anchor">
+            <button class="chip-button mode-button" :data-mode="mode" title="Modo: quanta liberdade o agente tem" @click="alternar('modo')">{{ modeLabel }}</button>
+            <div v-if="showMode" class="popover left">
+              <div class="popover-title">Modo</div>
+              <button v-for="(m, i) in modes" :key="m.value" class="mode-option" :class="{ active: m.value === mode }" @click="pickMode(m.value)">
+                <span class="mode-name">{{ m.label }} <span v-if="m.value === mode" class="check"><Icone nome="check" :tamanho="12" /></span></span>
+                <span class="mode-detail">{{ m.detail }}</span>
+                <span class="menu-key">{{ i + 1 }}</span>
               </button>
             </div>
-            <button class="link" @click="reasoning = ''; fechar('esforco')">Usar o padrão do perfil ({{ agent?.reasoning ?? 'medium' }})</button>
           </div>
-        </div>
-        <div class="popover-anchor">
-          <button class="chip-button" @click="alternar('uso')">
-            <span class="ring" :style="{ '--pct': contextPct + '%' }"></span>
-            {{ contextPct }}% contexto
-          </button>
-          <div v-if="showUsage" class="popover wide">
-            <div v-for="b in bars" :key="b.label" class="bar-row">
-              <div class="bar-head">
-                <span>{{ b.label }}</span>
-                <span class="muted">{{ fmt(b.value, b.unit) }}{{ b.limit !== null ? ` / ${fmt(b.limit, b.unit)}` : '' }} {{ b.unit === 'USD' ? 'USD' : '' }}<template v-if="b.limit !== null"> ({{ pct(b.value, b.limit) }}%)</template></span>
+          <div class="popover-anchor">
+            <button class="chip-button" :class="{ auto: ajustesResumo !== '' }" title="Modelo, esforço e melhoria do pedido" @click="alternar('agente')">
+              <Icone nome="config" :tamanho="13" />
+              <span class="ajustes-texto">{{ ajustesResumo ? `Ajustes: ${ajustesResumo}` : 'Ajustes' }}</span>
+            </button>
+            <div v-if="showAjustes" class="popover left ajustes">
+              <div class="popover-title">Modelo</div>
+              <button class="mode-option" :class="{ active: chosenAgent === autoAgent }" @click="pickAgent(autoAgent)">
+                <span class="mode-name">Automático <span v-if="chosenAgent === autoAgent" class="check"><Icone nome="check" :tamanho="12" /></span></span>
+                <span class="mode-detail">Escolhe o melhor modelo a cada mensagem<template v-if="chosenAgent === autoAgent && run?.model">. Última escolha: {{ run.model }}</template></span>
+              </button>
+              <button v-for="a in sessions.agents" :key="a.name" class="mode-option" :class="{ active: chosenAgent === a.name }" @click="pickAgent(a.name)">
+                <span class="mode-name">{{ a.name }} <span class="modelo-tecnico">{{ a.provider }}/{{ a.model }}</span> <span v-if="chosenAgent === a.name" class="check"><Icone nome="check" :tamanho="12" /></span></span>
+                <span v-if="a.description" class="mode-detail">{{ a.description }}</span>
+              </button>
+
+              <div class="popover-title secao">Esforço</div>
+              <div class="effort-scale">
+                <button v-for="l in levels" :key="l.value" class="effort-step" :class="{ active: (reasoning || agent?.reasoning) === l.value }" @click="reasoning = l.value">
+                  {{ l.label }}
+                </button>
               </div>
-              <div class="bar"><div class="bar-fill" :class="{ warn: pct(b.value, b.limit) >= 80 }" :style="{ width: pct(b.value, b.limit) + '%' }"></div></div>
+              <button class="link" :class="{ ativo: reasoning === '' }" @click="reasoning = ''">Usar o padrão do modelo ({{ defaultEffortLabel }})</button>
+
+              <div class="secao melhorar">
+                <button type="button" role="switch" :aria-checked="improve" :class="['ui-interruptor', { ligado: improve }]" @click="toggleImprove">
+                  <span class="ui-interruptor-trilho" aria-hidden="true"><span class="ui-interruptor-bola"></span></span>
+                  <span>Melhorar meu pedido antes de enviar</span>
+                </button>
+                <p class="mode-detail">Um modelo barato reescreve seu pedido com mais clareza; o texto original fica guardado</p>
+              </div>
             </div>
-            <RouterLink to="/costs" class="link">Ver detalhamento</RouterLink>
           </div>
+          <span v-if="run?.phase" class="chip">Etapa: {{ run.phase }}</span>
         </div>
-        <button v-if="running" class="ghost" @click="$emit('cancel')">Parar</button>
-        <button
-          class="primary"
-          :disabled="!text.trim() && !attachments.length && !images.length"
-          :title="running ? 'Entra na fila e vai sozinha quando o run atual terminar' : ''"
-          @click="submit"
-        >
-          {{ running ? 'Enfileirar' : 'Enviar' }}
-        </button>
+        <div class="bar-grupo bar-direita">
+          <div class="popover-anchor">
+            <button class="chip-button" title="Quanto da memória da conversa já foi usado" @click="alternar('uso')">
+              <span class="ring" :style="{ '--pct': contextPct + '%' }"></span>
+              {{ contextPct }}%
+            </button>
+            <div v-if="showUsage" class="popover wide">
+              <div v-for="b in bars" :key="b.label" class="bar-row">
+                <div class="bar-head">
+                  <span>{{ b.label }}</span>
+                  <span class="muted">{{ fmt(b.value, b.unit) }}<template v-if="b.limit !== null"> de {{ fmt(b.limit, b.unit) }} ({{ pct(b.value, b.limit) }}%)</template></span>
+                </div>
+                <div class="bar"><div class="bar-fill" :class="{ warn: pct(b.value, b.limit) >= 80 }" :style="{ width: pct(b.value, b.limit) + '%' }"></div></div>
+              </div>
+              <RouterLink to="/settings/custos" class="link" @click="fechar('uso')">Ver gastos</RouterLink>
+            </div>
+          </div>
+          <button v-if="running" class="ghost" @click="$emit('cancel')">Parar</button>
+          <button
+            class="primary"
+            :disabled="!text.trim() && !attachments.length && !images.length"
+            :title="running ? 'Entra na fila e vai sozinha quando a tarefa atual terminar' : ''"
+            @click="submit"
+          >
+            {{ running ? 'Enfileirar' : 'Enviar' }}
+          </button>
+        </div>
       </div>
     </div>
   </footer>
 </template>
+
+<style scoped>
+.composer-box {
+  position: relative;
+}
+
+.bar-grupo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.bar-esquerda {
+  flex: 1 1 auto;
+}
+
+.bar-direita {
+  margin-left: auto;
+  flex-wrap: nowrap;
+}
+
+.ajustes-texto {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.composer-bar :deep(.popover) {
+  max-width: calc(100vw - 32px);
+  max-height: min(70vh, 520px);
+  overflow-y: auto;
+}
+
+.ajustes {
+  min-width: 380px;
+}
+
+.secao {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.modelo-tecnico {
+  font-weight: 400;
+  font-size: 11px;
+  color: var(--muted);
+  font-family: var(--mono);
+  margin-left: 4px;
+}
+
+.link.ativo {
+  font-weight: 600;
+}
+
+.melhorar .ui-interruptor {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: normal;
+  text-align: left;
+}
+
+.melhorar .mode-detail {
+  margin: 4px 0 0 38px;
+}
+
+.chip-x {
+  display: inline-flex;
+  align-items: center;
+}
+
+@media (max-width: 639px) {
+  .bar-esquerda {
+    flex-basis: 100%;
+  }
+
+  .composer-bar .popover-anchor {
+    position: static;
+  }
+
+  .composer-bar :deep(.popover) {
+    left: 0;
+    right: 0;
+    min-width: 0;
+    max-width: none;
+    bottom: calc(100% + 8px);
+  }
+
+  .ajustes-texto {
+    max-width: 150px;
+  }
+}
+</style>

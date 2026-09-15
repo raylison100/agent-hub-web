@@ -3074,3 +3074,19 @@ tfoot td {
   border-radius: 8px;
   border: 1px solid var(--border);
 }
+
+.markdown img.arquivo-imagem {
+  display: block;
+  max-width: min(320px, 100%);
+  min-height: 40px;
+  margin: 8px 0;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  cursor: zoom-in;
+}
+
+.markdown img.arquivo-imagem-falhou {
+  min-height: 0;
+  padding: 6px 8px;
+  font-size: 12px;
+}

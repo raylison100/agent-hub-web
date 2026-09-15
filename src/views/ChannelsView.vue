@@ -47,6 +47,13 @@ async function criar(): Promise<void> {
 
 async function salvar(): Promise<void> {
   if (!atual.value) return
+  const trocandoSegredo = atual.value.campos.some((c) => c.segredo && c.preenchido && valores.value[c.chave]?.trim())
+  if (
+    trocandoSegredo &&
+    atual.value.conta &&
+    !window.confirm(`O canal ${atual.value.nome} esta ligado a ${atual.value.conta}. Trocar a credencial troca o bot deste canal. Continuar? Para adicionar outro bot, cancele e use Novo canal.`)
+  )
+    return
   if (await pedir({ type: 'canal.salvar', canal: atual.value.id, valores: valores.value })) valores.value = {}
 }
 
@@ -159,13 +166,32 @@ onUnmounted(() => desligar?.())
       quiser, cada um com o seu agente, papel e pasta padrao. Credenciais ficam cifradas no daemon.
     </p>
 
-    <div class="canais-abas">
-      <button v-for="c in canais" :key="c.id" type="button" :class="['canal-aba', { ativo: selecionado === c.id && !novo }]" @click="selecionado = c.id; novo = null">
-        {{ c.nome }}
-        <span class="muted small">{{ nomeDoTipo(c.tipo) }}</span>
-        <span v-if="c.rodando" class="badge">ligado</span>
+    <div class="canais-lista">
+      <button
+        v-for="c in canais"
+        :key="c.id"
+        type="button"
+        :class="['canal-cartao', { ativo: selecionado === c.id && !novo }]"
+        @click="selecionado = c.id; novo = null"
+      >
+        <span class="canal-cartao-topo">
+          <strong>{{ c.nome }}</strong>
+          <span :class="['canal-status', c.rodando ? 'ligado' : c.configurado ? 'parado' : 'pendente']">
+            {{ c.rodando ? 'ligado' : c.configurado ? 'desligado' : 'sem credencial' }}
+          </span>
+        </span>
+        <span class="canal-cartao-linha">{{ nomeDoTipo(c.tipo) }}{{ c.conta ? ` · ${c.conta}` : '' }}</span>
+        <span class="canal-cartao-linha muted">
+          {{ c.permitidos.length }} {{ c.permitidos.length === 1 ? 'pessoa' : 'pessoas' }}
+          <template v-if="c.pedidos.length"> · {{ c.pedidos.length }} {{ c.pedidos.length === 1 ? 'pedido' : 'pedidos' }} de acesso</template>
+          <template v-if="c.padrao.papel"> · papel {{ c.padrao.papel }}</template>
+        </span>
+        <span class="canal-cartao-linha muted">id nas automacoes: <code>{{ c.id }}</code></span>
       </button>
-      <button type="button" :class="['canal-aba', { ativo: novo }]" @click="novo = { tipo: 'telegram', nome: '' }">+ Novo canal</button>
+      <button type="button" :class="['canal-cartao', 'canal-novo', { ativo: novo }]" @click="novo = { tipo: 'telegram', nome: '' }">
+        <strong>+ Novo canal</strong>
+        <span class="canal-cartao-linha muted">Outro bot do Telegram, WhatsApp...</span>
+      </button>
     </div>
 
     <form v-if="novo || canais.length === 0" class="canal-bloco secret-form" @submit.prevent="criar()">
@@ -204,6 +230,10 @@ onUnmounted(() => desligar?.())
 
       <form class="canal-bloco secret-form" @submit.prevent="salvar()">
         <h2>Credenciais</h2>
+        <p v-if="atual.conta" class="canal-aviso small">
+          Este canal usa <strong>{{ atual.conta }}</strong>. Colar outro token troca o bot deste canal. Para usar mais um bot, crie um
+          <a href="#" @click.prevent="novo = { tipo: atual.tipo, nome: '' }">canal novo</a>.
+        </p>
         <label v-for="campo in atual.campos" :key="campo.chave">
           {{ campo.rotulo }}
           <input

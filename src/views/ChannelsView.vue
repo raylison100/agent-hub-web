@@ -3,6 +3,7 @@ import type { CanalId, EstadoDoCanal, ServerFrame, TipoDeCanalResumo } from '@ag
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { client } from '../daemon/client'
 import { useConnection } from '../stores/connection'
+import { imageSrc } from '../stores/sessions'
 
 const tipos = ref<TipoDeCanalResumo[]>([])
 const canais = ref<EstadoDoCanal[]>([])
@@ -68,8 +69,57 @@ function quando(ts: number): string {
   return new Date(ts).toLocaleString()
 }
 
-function nomeDe(p: { id: string; nome?: string; usuario?: string }): string {
-  return [p.nome, p.usuario ? `@${p.usuario}` : ''].filter(Boolean).join(' ') || p.id
+type Pessoa = { id: string; nome?: string; apelido?: string; usuario?: string; foto?: string; conversa?: string }
+
+function fotoDe(p: Pessoa): string {
+  return p.foto ? imageSrc({ mediaType: 'image/jpeg', ref: p.foto }) : ''
+}
+
+function idDe(p: Pessoa): string {
+  if (!atual.value) return p.id
+  return atual.value.tipo === 'whatsapp' && /^\d+$/.test(p.id) ? `+${p.id}` : p.id
+}
+
+const editando = ref<string | null>(null)
+const apelido = ref('')
+
+function nomeLegivel(p: Pessoa): string | undefined {
+  const nome = p.nome?.trim()
+  return nome && /[\p{L}\p{N}]/u.test(nome) ? nome : undefined
+}
+
+function tituloDe(p: Pessoa): string {
+  return p.apelido ?? nomeLegivel(p) ?? (p.usuario ? `@${p.usuario}` : 'Sem nome no canal')
+}
+
+function detalhesDe(p: Pessoa): { rotulo: string; valor: string }[] {
+  const itens: { rotulo: string; valor: string }[] = []
+  if (p.apelido && nomeLegivel(p)) itens.push({ rotulo: 'Nome no canal', valor: nomeLegivel(p)! })
+  if (!nomeLegivel(p) && p.nome) itens.push({ rotulo: 'Nome no canal', valor: `${p.nome} (sem letras)` })
+  if (p.usuario) itens.push({ rotulo: 'Usuario', valor: `@${p.usuario}` })
+  itens.push({ rotulo: atual.value?.rotuloDoId ?? 'ID', valor: idDe(p) })
+  return itens
+}
+
+function iniciais(p: Pessoa): string {
+  const base = p.apelido ?? nomeLegivel(p) ?? p.usuario
+  if (!base) return '?'
+  return base
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((s) => s[0]!.toUpperCase())
+    .join('')
+}
+
+function editar(p: Pessoa): void {
+  editando.value = p.id
+  apelido.value = p.apelido ?? nomeLegivel(p) ?? ''
+}
+
+async function salvarApelido(pessoa: string): Promise<void> {
+  if (!atual.value) return
+  if (await pedir({ type: 'canal.apelidar', canal: atual.value.id, pessoa, apelido: apelido.value })) editando.value = null
 }
 
 watch(
@@ -196,10 +246,18 @@ onUnmounted(() => desligar?.())
         <h2>Pediram acesso</h2>
         <p class="muted small">Quem manda mensagem para o bot e ainda nao tem acesso aparece aqui, sozinho, sem recarregar a tela.</p>
         <p v-if="atual.pedidos.length === 0" class="muted small">{{ atual.rodando ? 'Ninguem ainda.' : 'Ligue o canal primeiro.' }}</p>
-        <ul class="canal-pessoas">
-          <li v-for="p in atual.pedidos" :key="p.id">
-            <span>{{ nomeDe(p) }} <span class="muted small">id {{ p.id }}, {{ quando(p.em) }}</span></span>
-            <span class="row">
+        <ul class="pessoas">
+          <li v-for="p in atual.pedidos" :key="p.id" class="pessoa pendente">
+            <img v-if="fotoDe(p)" class="pessoa-avatar" :src="fotoDe(p)" alt="" />
+            <span v-else class="pessoa-avatar">{{ iniciais(p) }}</span>
+            <span class="pessoa-info">
+              <span class="pessoa-titulo">{{ tituloDe(p) }} <span class="badge muted-badge">aguardando</span></span>
+              <span class="pessoa-detalhes">
+                <span v-for="d in detalhesDe(p)" :key="d.rotulo" class="pessoa-detalhe"><span class="muted">{{ d.rotulo }}</span> {{ d.valor }}</span>
+                <span class="pessoa-detalhe"><span class="muted">Pediu em</span> {{ quando(p.em) }}</span>
+              </span>
+            </span>
+            <span class="pessoa-acoes">
               <button class="primary" type="button" @click="pedir({ type: 'canal.permitir', canal: atual.id, pessoa: p.id })">Permitir</button>
               <button type="button" @click="pedir({ type: 'canal.remover_pessoa', canal: atual.id, pessoa: p.id })">Ignorar</button>
             </span>
@@ -209,12 +267,35 @@ onUnmounted(() => desligar?.())
 
       <div v-if="atual.configurado" class="canal-bloco">
         <h2>Pessoas permitidas</h2>
-        <p class="muted small">A primeira pessoa da lista recebe as respostas das automacoes que avisam neste canal.</p>
+        <p class="muted small">
+          Para chamar mais gente, mande o link do bot{{ atual.link ? `: ${atual.link}` : '' }}. A primeira pessoa da lista recebe os avisos das automacoes.
+        </p>
         <p v-if="atual.permitidos.length === 0" class="muted small">Nenhuma ainda.</p>
-        <ul class="canal-pessoas">
-          <li v-for="p in atual.permitidos" :key="p.id">
-            <span>{{ nomeDe(p) }} <span class="muted small">id {{ p.id }}{{ p.conversa ? '' : ', ainda nao falou com o bot' }}</span></span>
-            <button type="button" @click="pedir({ type: 'canal.remover_pessoa', canal: atual.id, pessoa: p.id })">Remover</button>
+        <ul class="pessoas">
+          <li v-for="(p, i) in atual.permitidos" :key="p.id" class="pessoa">
+            <img v-if="fotoDe(p)" class="pessoa-avatar" :src="fotoDe(p)" alt="" />
+            <span v-else class="pessoa-avatar">{{ iniciais(p) }}</span>
+            <span v-if="editando === p.id" class="pessoa-info">
+              <form class="pessoa-editar" @submit.prevent="salvarApelido(p.id)">
+                <input v-model="apelido" type="text" placeholder="Como mostrar esta pessoa" autofocus />
+                <button class="primary" type="submit">Salvar</button>
+                <button type="button" @click="editando = null">Cancelar</button>
+              </form>
+            </span>
+            <span v-else class="pessoa-info">
+              <span class="pessoa-titulo">
+                {{ tituloDe(p) }}
+                <span v-if="i === 0" class="badge">recebe avisos</span>
+                <span v-if="!p.conversa" class="badge muted-badge">ainda nao falou com o bot</span>
+              </span>
+              <span class="pessoa-detalhes">
+                <span v-for="d in detalhesDe(p)" :key="d.rotulo" class="pessoa-detalhe"><span class="muted">{{ d.rotulo }}</span> {{ d.valor }}</span>
+              </span>
+            </span>
+            <span v-if="editando !== p.id" class="pessoa-acoes">
+              <button type="button" @click="editar(p)">Editar nome</button>
+              <button type="button" @click="pedir({ type: 'canal.remover_pessoa', canal: atual.id, pessoa: p.id })">Remover</button>
+            </span>
           </li>
         </ul>
       </div>

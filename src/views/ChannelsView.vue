@@ -4,6 +4,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { client } from '../daemon/client'
 import { useConnection } from '../stores/connection'
 import { imageSrc } from '../stores/sessions'
+import { avisar, confirmar } from '../ui/feedback'
 
 const tipos = ref<TipoDeCanalResumo[]>([])
 const canais = ref<EstadoDoCanal[]>([])
@@ -20,7 +21,7 @@ const atual = computed(() => canais.value.find((c) => c.id === selecionado.value
 function receber(f: Extract<ServerFrame, { type: 'canais.estado' }>): void {
   tipos.value = f.tipos
   canais.value = f.canais
-  if (f.aviso) aviso.value = f.aviso
+  if (f.aviso) avisar(f.aviso)
   if (f.criado) selecionado.value = f.criado
   if (!canais.value.some((c) => c.id === selecionado.value)) selecionado.value = canais.value[0]?.id ?? ''
 }
@@ -34,6 +35,7 @@ async function pedir(frame: Parameters<typeof client.request>[0]): Promise<boole
     return true
   } catch (err) {
     erro.value = err instanceof Error ? err.message : String(err)
+    avisar(erro.value, 'erro')
     return false
   } finally {
     ocupado.value = false
@@ -51,7 +53,11 @@ async function salvar(): Promise<void> {
   if (
     trocandoSegredo &&
     atual.value.conta &&
-    !window.confirm(`O canal ${atual.value.nome} esta ligado a ${atual.value.conta}. Trocar a credencial troca o bot deste canal. Continuar? Para adicionar outro bot, cancele e use Novo canal.`)
+    !(await confirmar({
+      titulo: `Trocar o bot do canal ${atual.value.nome}?`,
+      detalhe: `Este canal usa ${atual.value.conta}. A credencial nova troca o bot deste canal. Para adicionar outro bot, cancele e use Novo canal.`,
+      botao: 'Trocar o bot',
+    }))
   )
     return
   if (await pedir({ type: 'canal.salvar', canal: atual.value.id, valores: valores.value })) valores.value = {}
@@ -62,10 +68,20 @@ async function salvarPadrao(): Promise<void> {
   await pedir({ type: 'canal.padrao', canal: atual.value.id, ...padrao.value })
 }
 
-function apagar(): void {
+async function apagar(): Promise<void> {
   if (!atual.value) return
-  if (!window.confirm(`Apagar o canal ${atual.value.nome}? As credenciais e as pessoas permitidas deste canal saem junto.`)) return
-  void pedir({ type: 'canal.apagar', canal: atual.value.id })
+  const ok = await confirmar({
+    titulo: `Apagar o canal ${atual.value.nome}?`,
+    detalhe: 'As credenciais e as pessoas permitidas deste canal saem junto. Não dá para desfazer.',
+    botao: 'Apagar canal',
+  })
+  if (ok) void pedir({ type: 'canal.apagar', canal: atual.value.id })
+}
+
+async function removerPessoa(pessoa: { id: string; nome?: string; apelido?: string }): Promise<void> {
+  if (!atual.value) return
+  const ok = await confirmar({ titulo: `Remover ${pessoa.apelido ?? pessoa.nome ?? pessoa.id}?`, detalhe: 'A pessoa deixa de conversar com os agentes por este canal.', botao: 'Remover' })
+  if (ok) void pedir({ type: 'canal.remover_pessoa', canal: atual.value.id, pessoa: pessoa.id })
 }
 
 function nomeDoTipo(id: CanalId): string {
@@ -324,7 +340,7 @@ onUnmounted(() => desligar?.())
             </span>
             <span v-if="editando !== p.id" class="pessoa-acoes">
               <button type="button" @click="editar(p)">Editar nome</button>
-              <button type="button" @click="pedir({ type: 'canal.remover_pessoa', canal: atual.id, pessoa: p.id })">Remover</button>
+              <button type="button" class="danger" @click="removerPessoa(p)">Remover</button>
             </span>
           </li>
         </ul>
@@ -344,11 +360,9 @@ onUnmounted(() => desligar?.())
       </form>
 
       <div class="canal-bloco">
-        <button type="button" :disabled="ocupado" @click="apagar()">Apagar este canal</button>
+        <button type="button" class="danger" :disabled="ocupado" @click="apagar()">Apagar este canal</button>
       </div>
     </template>
 
-    <p v-if="aviso" class="muted small">{{ aviso }}</p>
-    <p v-if="erro" class="error small">{{ erro }}</p>
   </section>
 </template>

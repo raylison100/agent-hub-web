@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue'
 import { useAtualizacoes } from '../stores/atualizacoes'
+import { confirmar } from '../ui/feedback'
 
 const at = useAtualizacoes()
 const releases = 'https://github.com/raylison100/agent-hub/releases/latest'
@@ -16,6 +17,13 @@ function pararEspera(): void {
 }
 
 async function atualizarDaemon(): Promise<void> {
+  const ok = await confirmar({
+    titulo: 'Atualizar o serviço do Agent Hub agora?',
+    detalhe: 'O serviço reinicia no fim e interrompe as conversas e rotinas em andamento.',
+    botao: 'Atualizar',
+    perigo: false,
+  })
+  if (!ok) return
   versaoAntes.value = at.daemon?.atual ?? ''
   await at.atualizarDaemon()
   if (!at.daemon?.atualizando) return

@@ -8,6 +8,7 @@ import ConnectView from './views/ConnectView.vue'
 import ContextView from './views/ContextView.vue'
 import ConnectorsView from './views/ConnectorsView.vue'
 import CostView from './views/CostView.vue'
+import OverviewView from './views/OverviewView.vue'
 import PluginsView from './views/PluginsView.vue'
 import SecretsView from './views/SecretsView.vue'
 import ShareView from './views/ShareView.vue'
@@ -29,7 +30,8 @@ export const router = createRouter({
       path: '/settings',
       component: SettingsView,
       children: [
-        { path: '', redirect: '/settings/custos' },
+        { path: '', redirect: '/settings/geral' },
+        { path: 'geral', name: 'overview', component: OverviewView },
         { path: 'aparencia', name: 'appearance', component: AppearanceView },
         { path: 'custos', name: 'costs', component: CostView },
         { path: 'automacoes', name: 'automations', component: AutomationsView },

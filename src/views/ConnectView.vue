@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { DeviceSummary } from '@agent-hub/core'
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { disablePush, enablePush, pushState, testPush, type PushState } from '../push'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
@@ -9,6 +9,7 @@ import { client } from '../daemon/client'
 import { isDesktop } from '../daemon/native-dialog'
 import { useConnection } from '../stores/connection'
 import { useSessions } from '../stores/sessions'
+import { avisar, confirmar } from '../ui/feedback'
 
 const connection = useConnection()
 const sessions = useSessions()
@@ -155,6 +156,14 @@ function quando(ts: number | null): string {
 }
 
 const daemonAviso = ref('')
+
+watch(error, (texto) => {
+  if (texto) avisar(texto, 'erro')
+})
+
+watch(daemonAviso, (texto) => {
+  if (texto) avisar(texto, 'info')
+})
 const reiniciando = ref(false)
 
 /** Recarrega perfis, papeis, precos e conectores sem derrubar o processo: resolve quase toda mudanca de configuracao. */
@@ -170,6 +179,12 @@ async function recarregar(): Promise<void> {
 
 /** Reinicio de verdade, para quando o codigo do daemon mudou. Com o servico instalado, ele volta sozinho. */
 async function reiniciarDaemon(): Promise<void> {
+  const ok = await confirmar({
+    titulo: 'Reiniciar o serviço do Agent Hub?',
+    detalhe: 'As conversas e rotinas em andamento são interrompidas. A tela reconecta sozinha em alguns segundos.',
+    botao: 'Reiniciar',
+  })
+  if (!ok) return
   daemonAviso.value = ''
   reiniciando.value = true
   try {

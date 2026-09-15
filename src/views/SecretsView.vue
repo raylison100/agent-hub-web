@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { client } from '../daemon/client'
 import { useConnection } from '../stores/connection'
+import { avisar, confirmar, mensagemDeErro } from '../ui/feedback'
 
 interface SecretRow {
   name: string
@@ -36,6 +37,7 @@ async function save(target?: string): Promise<void> {
   try {
     rows.value = (await client.request({ type: 'secrets.set', name: n, value: value.value }, 'secrets.list')).secrets
     saved.value = `${n} salva`
+    avisar(`Chave ${n} salva.`)
     value.value = ''
     if (!target) name.value = ''
   } catch (err) {
@@ -44,11 +46,13 @@ async function save(target?: string): Promise<void> {
 }
 
 async function remove(n: string): Promise<void> {
-  error.value = ''
+  const ok = await confirmar({ titulo: `Apagar a chave ${n}?`, detalhe: 'O que usa essa chave para de funcionar até você cadastrar outra.', botao: 'Apagar chave' })
+  if (!ok) return
   try {
     rows.value = (await client.request({ type: 'secrets.delete', name: n }, 'secrets.list')).secrets
+    avisar(`Chave ${n} apagada.`)
   } catch (err) {
-    error.value = err instanceof Error ? err.message : String(err)
+    avisar(mensagemDeErro(err), 'erro')
   }
 }
 

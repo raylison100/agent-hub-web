@@ -4,6 +4,7 @@ import { onMounted, onUnmounted, ref } from 'vue'
 import { client } from '../daemon/client'
 import { useConnection } from '../stores/connection'
 import { useSessions } from '../stores/sessions'
+import { avisar, confirmar, mensagemDeErro } from '../ui/feedback'
 
 const sessions = useSessions()
 const schedules = ref<ScheduleStatus[]>([])
@@ -102,12 +103,24 @@ async function save(): Promise<void> {
 }
 
 function runNow(id: string): void {
-  client.send({ type: 'schedule.run_now', id })
+  try {
+    client.send({ type: 'schedule.run_now', id })
+    avisar(`Rotina ${id} iniciada. O resultado aparece nas sessões e no canal de aviso.`, 'info')
+  } catch (err) {
+    avisar(mensagemDeErro(err), 'erro')
+  }
 }
 
 async function remove(id: string): Promise<void> {
-  await client.request({ type: 'schedule.delete', id }, 'schedule.deleted')
-  await load()
+  const ok = await confirmar({ titulo: `Apagar a rotina ${id}?`, detalhe: 'Ela deixa de rodar. As sessões que ela já criou continuam.', botao: 'Apagar rotina' })
+  if (!ok) return
+  try {
+    await client.request({ type: 'schedule.delete', id }, 'schedule.deleted')
+    avisar(`Rotina ${id} apagada.`)
+    await load()
+  } catch (err) {
+    avisar(mensagemDeErro(err), 'erro')
+  }
 }
 
 function toggle(): void {
@@ -121,7 +134,7 @@ function when(ts: number | null): string {
 function onFrame(f: ServerFrame): void {
   if (f.type === 'automation.state') paused.value = f.paused
   if (f.type === 'automation.started' || f.type === 'automation.finished' || f.type === 'schedule.saved' || f.type === 'schedule.deleted') void load()
-  if (f.type === 'automation.error') error.value = `${f.id}: ${f.message}`
+  if (f.type === 'automation.error') avisar(`Rotina ${f.id}: ${f.message}`, 'erro')
 }
 
 let off: (() => void) | null = null

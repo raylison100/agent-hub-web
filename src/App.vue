@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import RightPanel from './components/RightPanel.vue'
 import Sidebar from './components/Sidebar.vue'
+import FeedbackHost from './components/ui/FeedbackHost.vue'
 import { useConnection } from './stores/connection'
 import { useSessions } from './stores/sessions'
 import { useVisualizacao } from './stores/visualizacao'
@@ -155,5 +156,6 @@ onMounted(async () => {
         </div>
       </div>
     </div>
+    <FeedbackHost />
   </div>
 </template>

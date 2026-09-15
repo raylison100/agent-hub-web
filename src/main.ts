@@ -7,6 +7,7 @@ import { instalarLinksExternos } from './links-externos'
 import { router } from './router'
 import { aplicar, carregar } from './theme'
 import './styles.css'
+import './ui.css'
 
 /** No desktop os arquivos ja vem no instalador; um service worker so serviria para servir versao velha depois de atualizar o app. */
 async function dropServiceWorker(): Promise<void> {

@@ -7,34 +7,43 @@ const router = useRouter()
 
 const grupos: { titulo: string; itens: { nome: string; rota: string }[] }[] = [
   {
-    titulo: 'Interface',
-    itens: [{ nome: 'Aparencia', rota: '/settings/aparencia' }],
+    titulo: '',
+    itens: [{ nome: 'Visão geral', rota: '/settings/geral' }],
   },
   {
-    titulo: 'Uso',
-    itens: [
-      { nome: 'Custos', rota: '/settings/custos' },
-      { nome: 'Automacoes', rota: '/settings/automacoes' },
-    ],
-  },
-  {
-    titulo: 'Personalizar',
+    titulo: 'Agentes e rotinas',
     itens: [
       { nome: 'Agentes', rota: '/settings/agentes' },
-      { nome: 'Conectores', rota: '/settings/conectores' },
-      { nome: 'Contexto do projeto', rota: '/settings/contexto' },
-      { nome: 'Skills', rota: '/settings/skills' },
-      { nome: 'Plugins', rota: '/settings/plugins' },
+      { nome: 'Rotinas', rota: '/settings/automacoes' },
+      { nome: 'Memória do projeto', rota: '/settings/contexto' },
     ],
   },
   {
-    titulo: 'Conta',
+    titulo: 'Canais',
+    itens: [{ nome: 'Telegram e WhatsApp', rota: '/settings/canais' }],
+  },
+  {
+    titulo: 'Modelos e gastos',
     itens: [
-      { nome: 'Chaves', rota: '/settings/chaves' },
-      { nome: 'Canais', rota: '/settings/canais' },
-      { nome: 'Compartilhar modelos', rota: '/settings/compartilhar' },
-      { nome: 'Conexao', rota: '/settings/conexao' },
-      { nome: 'Atualizacoes', rota: '/settings/atualizacoes' },
+      { nome: 'Chaves de acesso', rota: '/settings/chaves' },
+      { nome: 'Gastos', rota: '/settings/custos' },
+      { nome: 'Modelos compartilhados', rota: '/settings/compartilhar' },
+    ],
+  },
+  {
+    titulo: 'Integrações',
+    itens: [
+      { nome: 'Conectores', rota: '/settings/conectores' },
+      { nome: 'Plugins', rota: '/settings/plugins' },
+      { nome: 'Skills', rota: '/settings/skills' },
+    ],
+  },
+  {
+    titulo: 'Sistema',
+    itens: [
+      { nome: 'Aparência', rota: '/settings/aparencia' },
+      { nome: 'Conexão e dispositivos', rota: '/settings/conexao' },
+      { nome: 'Atualizações', rota: '/settings/atualizacoes' },
     ],
   },
 ]
@@ -44,7 +53,9 @@ function fechar(): void {
 }
 
 function onKey(e: KeyboardEvent): void {
-  if (e.key === 'Escape') fechar()
+  const alvo = e.target as HTMLElement | null
+  if (e.key !== 'Escape' || alvo?.closest('input, textarea, select, .modal')) return
+  fechar()
 }
 
 onMounted(() => window.addEventListener('keydown', onKey))
@@ -55,14 +66,14 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
   <section class="settings">
     <aside class="settings-nav">
       <button class="settings-back" @click="fechar">&lsaquo; Voltar</button>
-      <div class="settings-title">Configuracoes</div>
-      <template v-for="g in grupos" :key="g.titulo">
-        <div class="settings-group">{{ g.titulo }}</div>
+      <div class="settings-title">Configurações</div>
+      <template v-for="g in grupos" :key="g.titulo || 'inicio'">
+        <div v-if="g.titulo" class="settings-group">{{ g.titulo }}</div>
         <RouterLink v-for="i in g.itens" :key="i.rota" :to="i.rota" class="settings-link">{{ i.nome }}</RouterLink>
       </template>
     </aside>
     <div class="settings-body">
-      <button class="settings-close" title="Fechar configuracoes, tecla Esc" @click="fechar">x</button>
+      <button class="settings-close" title="Fechar configurações (Esc)" aria-label="Fechar configurações" @click="fechar">×</button>
       <RouterView />
     </div>
   </section>

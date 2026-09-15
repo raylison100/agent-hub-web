@@ -513,7 +513,7 @@ h1 {
   animation: pulse 1.2s ease-in-out infinite;
 }
 
-.dot[data-mark='auto'] {
+.dot[data-mark='nova'] {
   background: var(--warn);
 }
 

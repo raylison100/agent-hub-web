@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import Icone from './ui/Icone.vue'
 import type { SessionSummary } from '@agent-hub/core'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { client } from '../daemon/client'
 import { useAtualizacoes } from '../stores/atualizacoes'
 import { useConnection } from '../stores/connection'
 import { useSessions } from '../stores/sessions'
+import { limparLidas, marcarComoLida, naoLida } from '../stores/lidas'
 import ConfirmDialog from './ConfirmDialog.vue'
 import ContextMenu, { type MenuItem } from './ContextMenu.vue'
 
@@ -222,9 +223,27 @@ function isActive(id: string): boolean {
 function mark(s: SessionSummary): string {
   const run = sessions.runs.get(s.id)
   if (run && !run.finished) return 'running'
-  if (s.origin !== 'user') return 'auto'
+  if (!isActive(s.id) && naoLida(s.id, s.updatedAt)) return 'nova'
   return ''
 }
+
+watch(
+  () => {
+    const id = route.name === 'chat' ? String(route.params.id) : ''
+    return [id, sessions.sessions.find((s) => s.id === id)?.updatedAt ?? 0] as const
+  },
+  ([id, atualizadaEm]) => {
+    if (id) marcarComoLida(id, Math.max(Date.now(), atualizadaEm))
+  },
+  { immediate: true },
+)
+
+watch(
+  () => sessions.sessions.length,
+  (n) => {
+    if (n > 0) limparLidas(sessions.sessions.map((s) => s.id))
+  },
+)
 
 /** Abre o menu da sessao. O WebView2 do Windows nao entrega `contextmenu` a pagina, entao o botao direito do mouse tambem dispara. */
 function openMenu(e: MouseEvent, session: SessionSummary): void {

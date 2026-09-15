@@ -76,9 +76,16 @@ watch(
   () => atual.value?.id,
   () => {
     valores.value = {}
+  },
+)
+
+watch(
+  () => (atual.value ? `${atual.value.id}|${atual.value.nome}|${JSON.stringify(atual.value.padrao)}` : ''),
+  () => {
     const c = atual.value
     padrao.value = { nome: c?.nome ?? '', agente: c?.padrao.agente ?? '', papel: c?.padrao.papel ?? '', workspace: c?.padrao.workspace ?? '' }
   },
+  { immediate: true },
 )
 
 let desligar: (() => void) | null = null

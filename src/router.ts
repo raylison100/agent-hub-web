@@ -15,7 +15,6 @@ import ShareView from './views/ShareView.vue'
 import UpdatesView from './views/UpdatesView.vue'
 import SessionsView from './views/SessionsView.vue'
 import SettingsView from './views/SettingsView.vue'
-import SkillsView from './views/SkillsView.vue'
 
 /** Ultima tela fora das configuracoes, para o botao de voltar cair onde o usuario estava. */
 export const ultimaTela = { path: '/' }
@@ -40,7 +39,8 @@ export const router = createRouter({
         { path: 'automacoes/:id', name: 'routine-editor', component: () => import('./views/RoutineEditorView.vue'), props: true },
         { path: 'conectores', name: 'connectors', component: ConnectorsView },
         { path: 'contexto', name: 'context', component: ContextView },
-        { path: 'skills', name: 'skills', component: SkillsView },
+        { path: 'conectores/:nome', name: 'connector-editor', component: () => import('./views/ConnectorEditorView.vue'), props: true },
+        { path: 'skills', name: 'skills', redirect: { path: '/settings/plugins', query: { aba: 'skills' } } },
         { path: 'plugins', name: 'plugins', component: PluginsView },
         { path: 'chaves', name: 'secrets', component: SecretsView },
         { path: 'canais', name: 'channels', component: ChannelsView },

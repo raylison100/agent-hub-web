@@ -34,8 +34,7 @@ const grupos: { titulo: string; itens: { nome: string; rota: string }[] }[] = [
     titulo: 'Integrações',
     itens: [
       { nome: 'Conectores', rota: '/settings/conectores' },
-      { nome: 'Plugins', rota: '/settings/plugins' },
-      { nome: 'Skills', rota: '/settings/skills' },
+      { nome: 'Plugins e skills', rota: '/settings/plugins' },
     ],
   },
   {

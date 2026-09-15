@@ -1,247 +1,287 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import ConfirmDialog from '../components/ConfirmDialog.vue'
+import type { ServerFrame } from '@agent-hub/core'
+import { onMounted, onUnmounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import Card from '../components/ui/Card.vue'
 import EmptyState from '../components/ui/EmptyState.vue'
 import PageHeader from '../components/ui/PageHeader.vue'
+import StatusBadge from '../components/ui/StatusBadge.vue'
 import { client } from '../daemon/client'
 import { useConnection } from '../stores/connection'
-import { useSessions } from '../stores/sessions'
-import { avisar } from '../ui/feedback'
+import { avisar, confirmar, mensagemDeErro, useAcao } from '../ui/feedback'
 
-interface Server {
-  name: string
-  connected: boolean
-  enabled: boolean
-  transport: 'stdio' | 'http'
-  command: string
-  args: string[]
-  url: string | null
-  tools: number
-  error: string | null
-  agents: string[]
-  oauth: 'autorizado' | 'pendente' | null
-}
+type Servidor = Extract<ServerFrame, { type: 'mcp.servers' }>['servers'][number]
+type Estado = 'ok' | 'desligado' | 'erro' | 'atencao' | 'andamento'
 
-const connection = useConnection()
-const sessions = useSessions()
-const servers = ref<Server[]>([])
-const selected = ref<string | null>(null)
-const paste = ref('')
-const adding = ref(false)
-const error = ref('')
+const router = useRouter()
+const servidores = ref<Servidor[]>([])
+const deArquivo = ref<Set<string>>(new Set())
 const carregando = ref(true)
-const secrets = ref<string[]>([])
-const pendingRemove = ref<string | null>(null)
-const busy = ref(false)
+const falha = ref('')
+const colado = ref('')
+const faltamChaves = ref<string[]>([])
+const emAndamento = ref<string | null>(null)
+const { ocupado, executar } = useAcao()
+let desligar: (() => void) | null = null
 
 const exemplo = `{
   "mcpServers": {
-    "meu-servidor": {
+    "meu-conector": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"]
+      "args": ["-y", "@modelcontextprotocol/server-filesystem"]
     }
   }
 }`
 
-const current = computed(() => servers.value.find((s) => s.name === selected.value) ?? null)
-
-onMounted(async () => {
-  await connection.whenOnline()
-  await sessions.loadAgents()
-  await load()
-})
-
-function describe(err: unknown): string {
-  return err instanceof Error ? err.message : String(err)
+/** Traduz o estado técnico do conector em um rótulo simples. */
+function estado(s: Servidor): { estado: Estado; texto: string } {
+  if (!s.enabled) return { estado: 'desligado', texto: 'Desligado' }
+  if (s.oauth === 'pendente') return { estado: 'atencao', texto: 'Aguardando autorização' }
+  if (s.error) return { estado: 'erro', texto: 'Com erro' }
+  if (s.connected) return { estado: 'ok', texto: 'Conectado' }
+  return { estado: 'atencao', texto: 'Não conectado ainda' }
 }
 
-async function load(): Promise<void> {
-  error.value = ''
+function tipo(s: Servidor): string {
+  return s.transport === 'http' ? 'Serviço na internet' : 'Programa nesta máquina'
+}
+
+async function descobrirEditaveis(lista: Servidor[]): Promise<void> {
+  const resultados = await Promise.all(
+    lista.map((s) =>
+      client
+        .request({ type: 'mcp.get', name: s.name }, 'mcp.detail')
+        .then(() => s.name)
+        .catch(() => null),
+    ),
+  )
+  deArquivo.value = new Set(resultados.filter((n): n is string => n !== null))
+}
+
+async function carregar(): Promise<void> {
+  falha.value = ''
   try {
-    servers.value = (await client.request({ type: 'mcp.servers' }, 'mcp.servers')).servers
-    if (!selected.value || !servers.value.some((s) => s.name === selected.value)) selected.value = servers.value[0]?.name ?? null
+    const res = await client.request({ type: 'mcp.servers' }, 'mcp.servers')
+    servidores.value = res.servers
+    await descobrirEditaveis(res.servers)
   } catch (err) {
-    error.value = describe(err)
-    if (servers.value.length) avisar(error.value, 'erro')
+    falha.value = mensagemDeErro(err)
   } finally {
     carregando.value = false
   }
 }
 
-async function run(action: () => Promise<void>): Promise<void> {
-  busy.value = true
-  try {
-    await action()
-  } catch (err) {
-    avisar(describe(err), 'erro')
-  } finally {
-    busy.value = false
-    await load()
-  }
-}
-
-/** Tres estados que o usuario entende: conectado, desconectado por escolha dele, ou tentando e falhando. */
-function estado(s: Server): { texto: string; tom: string } {
-  if (!s.enabled) return { texto: 'Desconectado', tom: 'off' }
-  if (s.connected) return { texto: 'Conectado', tom: 'on' }
-  if (s.error) return { texto: 'Falhou', tom: 'error' }
-  if (s.agents.length === 0) return { texto: 'Sem agente', tom: 'idle' }
-  return { texto: 'Conectando...', tom: 'idle' }
-}
-async function importar(): Promise<void> {
-  await run(async () => {
-    const res = await client.request({ type: 'mcp.import', source: 'claude-code' }, 'mcp.saved', 30000)
-    secrets.value = res.secrets
-    avisar(`Importado: ${res.added.join(', ')}`)
+async function testar(s: Servidor): Promise<void> {
+  emAndamento.value = s.name
+  const ok = await executar(async () => {
+    await client.request({ type: 'mcp.connect', name: s.name }, 'mcp.saved', 90000)
+    return true
   })
+  emAndamento.value = null
+  if (!ok) return
+  const res = await client.request({ type: 'mcp.servers' }, 'mcp.servers').catch(() => null)
+  if (res) servidores.value = res.servers
+  const atual = servidores.value.find((x) => x.name === s.name)
+  avisar(`Conectou: ${atual?.tools ?? 0} ${atual?.tools === 1 ? 'ferramenta' : 'ferramentas'}`)
 }
 
-async function adicionar(): Promise<void> {
-  if (!paste.value.trim()) return
-  await run(async () => {
-    const res = await client.request({ type: 'mcp.add', text: paste.value }, 'mcp.saved', 30000)
-    paste.value = ''
-    adding.value = false
-    secrets.value = res.secrets
-    avisar(`Adicionado: ${res.added.join(', ')}`)
-    selected.value = res.added[0] ?? selected.value
+async function alternar(s: Servidor): Promise<void> {
+  emAndamento.value = s.name
+  await executar(async () => {
+    await client.request({ type: 'mcp.toggle', name: s.name, enabled: !s.enabled }, 'mcp.saved', 90000)
+  }, s.enabled ? `Conector ${s.name} desligado.` : `Conector ${s.name} ligado.`)
+  emAndamento.value = null
+  await carregar()
+}
+
+async function apagar(s: Servidor): Promise<void> {
+  const ok = await confirmar({
+    titulo: `Apagar o conector ${s.name}?`,
+    detalhe: 'Os agentes deixam de usar este conector. As chaves secretas guardadas continuam no cofre.',
+    botao: 'Apagar conector',
+    perigo: true,
   })
+  if (!ok) return
+  await executar(async () => {
+    await client.request({ type: 'mcp.remove', name: s.name }, 'mcp.saved', 30000)
+  }, `Conector ${s.name} apagado.`)
+  await carregar()
 }
 
-/** Conecta ou desconecta o servidor. Desconectar fica gravado no mcp.json, entao o daemon nao volta a subir sozinho. */
-async function alternar(s: Server): Promise<void> {
-  await run(async () => {
-    await client.request({ type: 'mcp.toggle', name: s.name, enabled: !s.enabled }, 'mcp.saved', 60000)
-  })
-}
-
-/** Abre o fluxo de OAuth do servidor no navegador; o daemon guarda o token quando o provedor devolve. */
+/** Abre a autorização do serviço no navegador; o daemon guarda o acesso quando o serviço responde. */
 function autorizar(nome: string): void {
-  const base = typeof window === 'undefined' ? '' : window.location.origin.startsWith('http') ? window.location.origin : 'http://127.0.0.1:47311'
+  const base = window.location.origin.startsWith('http') ? window.location.origin : 'http://127.0.0.1:47311'
   window.open(`${base}/oauth/start?server=${encodeURIComponent(nome)}`, '_blank', 'noopener')
 }
 
-/** Liga ou desliga o servidor para um agente, editando a lista tools.mcp do perfil. */
-async function alternarAgente(s: Server, agente: string): Promise<void> {
-  const agentes = s.agents.includes(agente) ? s.agents.filter((a) => a !== agente) : [...s.agents, agente]
-  await run(async () => {
-    await client.request({ type: 'mcp.agents', name: s.name, agents: agentes }, 'mcp.agents', 30000)
-  })
+async function colar(): Promise<void> {
+  if (!colado.value.trim()) return
+  const res = await executar(() => client.request({ type: 'mcp.add', text: colado.value }, 'mcp.saved', 30000))
+  if (!res) return
+  colado.value = ''
+  faltamChaves.value = res.secrets
+  avisar(res.added.length ? `Adicionado: ${res.added.join(', ')}` : 'Nada novo para adicionar.')
+  await carregar()
 }
 
-async function remover(): Promise<void> {
-  const name = pendingRemove.value
-  pendingRemove.value = null
-  if (!name) return
-  await run(async () => {
-    await client.request({ type: 'mcp.remove', name }, 'mcp.saved', 30000)
-  })
+async function importar(): Promise<void> {
+  const res = await executar(() => client.request({ type: 'mcp.import', source: 'claude-code' }, 'mcp.saved', 30000))
+  if (!res) return
+  faltamChaves.value = res.secrets
+  avisar(res.added.length ? `Importado: ${res.added.join(', ')}` : 'Nada novo para importar.')
+  await carregar()
 }
+
+onMounted(async () => {
+  desligar = client.on((f) => {
+    if (f.type === 'mcp.servers') servidores.value = f.servers
+  })
+  await useConnection().whenOnline().catch(() => undefined)
+  await carregar()
+})
+
+onUnmounted(() => desligar?.())
 </script>
 
 <template>
   <div class="ui-page">
-    <PageHeader titulo="Conectores" descricao="Serviços externos que os agentes podem usar, como arquivos, e-mail ou sistemas da empresa. Cada agente escolhe quais enxerga.">
+    <PageHeader titulo="Conectores" descricao="Conectores dão aos agentes acesso a outros programas e serviços, como navegador, GitHub ou banco de dados.">
       <template #acoes>
-        <button class="ghost" :disabled="busy" @click="importar">Importar do Claude Code</button>
-        <button class="primary" :disabled="busy" @click="adding = !adding">Adicionar</button>
+        <button type="button" class="primary" @click="router.push('/settings/conectores/novo')">Novo conector</button>
       </template>
     </PageHeader>
 
-    <Card v-if="adding" titulo="Adicionar conector" descricao="Cole o JSON que a documentação do servidor mostra. Aceita mcpServers, servers ou um servidor solto.">
-      <div class="ui-form">
-        <textarea v-model="paste" rows="8" class="mono" :placeholder="exemplo" spellcheck="false"></textarea>
-        <div class="ui-form-acoes">
-          <button class="primary" :disabled="busy || !paste.trim()" @click="adicionar">Salvar conector</button>
-          <button class="ghost" @click="adding = false; paste = ''">Cancelar</button>
-        </div>
-      </div>
-    </Card>
-
-    <Card v-if="secrets.length" titulo="Faltam chaves de acesso" descricao="Estes conectores precisam de chaves para funcionar.">
-      <p class="warn small">Cadastre em <RouterLink to="/settings/chaves">Chaves de acesso</RouterLink>: {{ secrets.join(', ') }}</p>
-    </Card>
-
     <EmptyState v-if="carregando" titulo="Carregando" carregando />
-    <EmptyState v-else-if="error && !servers.length" titulo="Não consegui carregar os conectores" :texto="error">
-      <button @click="load">Tentar de novo</button>
+    <EmptyState v-else-if="falha && !servidores.length" titulo="Não consegui carregar os conectores" :texto="falha">
+      <button type="button" @click="carregar">Tentar de novo</button>
     </EmptyState>
 
-    <Card v-else-if="servers.length" titulo="Conectores configurados" descricao="Escolha um conector para ver os detalhes e quais agentes o usam.">
-      <div class="master-detail">
-        <div class="master">
-          <button
-            v-for="s in servers"
-            :key="s.name"
-            class="master-item"
-            :class="{ active: s.name === selected }"
-            @click="selected = s.name"
-          >
-            <span>{{ s.name }}</span>
-            <span class="tag" :data-state="estado(s).tom">{{ estado(s).texto }}</span>
-          </button>
-        </div>
+    <template v-else>
+      <Card v-if="faltamChaves.length" titulo="Faltam chaves secretas" descricao="Estes itens precisam de uma chave para o conector funcionar.">
+        <p class="small">Cadastre em <RouterLink to="/settings/chaves">Chaves de acesso</RouterLink> ou abra o conector e preencha: {{ faltamChaves.join(', ') }}</p>
+      </Card>
 
-        <div v-if="current" class="detail">
-          <div class="detail-head">
-            <h2>{{ current.name }}</h2>
-            <span class="tag" :data-state="estado(current).tom">{{ estado(current).texto }}</span>
-            <span class="spacer"></span>
-            <button class="primary small" :disabled="busy" @click="alternar(current)">{{ current.enabled ? 'Desconectar' : 'Conectar' }}</button>
-            <button v-if="current.oauth" class="ghost small" @click="autorizar(current.name)">
-              {{ current.oauth === 'autorizado' ? 'Autorizar de novo' : 'Autorizar' }}
-            </button>
-            <button class="danger small" :disabled="busy" @click="pendingRemove = current.name">Remover</button>
+      <EmptyState v-if="servidores.length === 0" titulo="Nenhum conector ainda" texto="Crie um conector para dar aos agentes acesso a outro programa ou serviço.">
+        <button type="button" class="primary" @click="router.push('/settings/conectores/novo')">Criar conector</button>
+      </EmptyState>
+
+      <ul v-else class="ui-lista conector-lista">
+        <li v-for="s in servidores" :key="s.name" class="ui-card conector-item">
+          <div class="conector-topo">
+            <strong class="conector-nome">{{ s.name }}</strong>
+            <StatusBadge :estado="estado(s).estado" :texto="estado(s).texto" />
           </div>
 
-          <template v-if="current.url">
-            <h3>URL</h3>
-            <p class="mono small break">{{ current.url }}</p>
-          </template>
-          <template v-else>
-            <h3>Comando</h3>
-            <p class="mono small">{{ current.command }}</p>
-            <h3>Argumentos</h3>
-            <p class="mono small break">{{ current.args?.join(' ') || '-' }}</p>
-          </template>
-
-          <h3>Agentes que usam</h3>
-          <div class="agent-chips">
-            <button
-              v-for="a in sessions.agents"
-              :key="a.name"
-              class="chip-button"
-              :class="{ auto: current.agents?.includes(a.name) }"
-              :disabled="busy"
-              @click="alternarAgente(current, a.name)"
-            >
-              {{ a.name }}
-            </button>
+          <div class="conector-chips">
+            <span class="conector-chip">{{ tipo(s) }}</span>
+            <span v-if="s.connected" class="conector-chip">{{ s.tools }} {{ s.tools === 1 ? 'ferramenta' : 'ferramentas' }}</span>
+            <span v-if="!deArquivo.has(s.name)" class="conector-chip">Vem de um plugin</span>
           </div>
-          <p v-if="!current.agents?.length" class="warn small">Nenhum agente usa este conector. Marque um agente acima e o daemon passa a manter a conexão dele sozinho.</p>
 
-          <h3>Ferramentas</h3>
-          <p class="small">{{ current.connected ? `${current.tools} disponíveis` : 'conecte para listar' }}</p>
+          <p class="muted small conector-agentes">
+            <template v-if="s.agents.length">
+              Usado por:
+              <span v-for="a in s.agents" :key="a" class="conector-chip destaque">{{ a }}</span>
+            </template>
+            <template v-else>Nenhum agente usa este conector ainda.</template>
+          </p>
 
-          <template v-if="current.error">
-            <h3 class="error">Erro</h3>
-            <p class="error small break">{{ current.error }}</p>
-          </template>
+          <p v-if="s.error" class="conector-erro small">{{ s.error }}</p>
+
+          <div class="ui-lista-item-acoes conector-acoes">
+            <RouterLink v-if="deArquivo.has(s.name)" :to="`/settings/conectores/${encodeURIComponent(s.name)}`" class="ui-link-botao">Editar</RouterLink>
+            <button type="button" :disabled="ocupado || !s.enabled" @click="testar(s)">{{ emAndamento === s.name ? 'Testando...' : 'Testar conexão' }}</button>
+            <button v-if="s.oauth" type="button" @click="autorizar(s.name)">{{ s.oauth === 'autorizado' ? 'Autorizar de novo' : 'Autorizar' }}</button>
+            <button type="button" :disabled="ocupado" @click="alternar(s)">{{ s.enabled ? 'Desligar' : 'Ligar' }}</button>
+            <button v-if="deArquivo.has(s.name)" type="button" class="danger" :disabled="ocupado" @click="apagar(s)">Apagar</button>
+          </div>
+        </li>
+      </ul>
+
+      <details class="ui-card conector-avancado">
+        <summary>Avançado: colar JSON ou importar do Claude Code</summary>
+        <div class="ui-form">
+          <p class="muted small">Cole o JSON que a documentação do conector mostra. Aceita o formato com mcpServers, servers ou um conector solto.</p>
+          <textarea v-model="colado" rows="8" class="mono" :placeholder="exemplo" spellcheck="false"></textarea>
+          <div class="ui-form-acoes">
+            <button type="button" class="primary" :disabled="ocupado || !colado.trim()" @click="colar">Adicionar do JSON</button>
+            <button type="button" :disabled="ocupado" @click="importar">Importar do Claude Code</button>
+          </div>
         </div>
-      </div>
-    </Card>
-    <EmptyState v-else titulo="Nenhum conector configurado" texto="Importe do Claude Code ou cole o JSON de um servidor.">
-      <button class="primary" :disabled="busy" @click="adding = true">Adicionar conector</button>
-    </EmptyState>
-
-    <ConfirmDialog
-      v-if="pendingRemove"
-      :title="`Remover o conector ${pendingRemove}?`"
-      detail="O servidor sai do mcp.json. As chaves cadastradas continuam salvas."
-      confirm-label="Remover"
-      @confirm="remover"
-      @cancel="pendingRemove = null"
-    />
+      </details>
+    </template>
   </div>
 </template>
+
+<style scoped>
+.conector-lista {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  border: 0;
+}
+
+.conector-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.conector-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.conector-nome {
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+
+.conector-chips,
+.conector-agentes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}
+
+.conector-chip {
+  font-size: var(--fs-small);
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text-soft);
+}
+
+.conector-chip.destaque {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+}
+
+.conector-erro {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  color: var(--error);
+  background: color-mix(in srgb, var(--error) 8%, transparent);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.conector-acoes {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+
+.conector-avancado summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.conector-avancado[open] summary {
+  margin-bottom: var(--space-3);
+}
+</style>

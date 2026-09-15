@@ -1,33 +1,24 @@
 <script setup lang="ts">
-import type { AutomationRun, HookCatalogItem, ScheduleStatus, ServerFrame, WorkflowRunState } from '@agent-hub/core'
+import type { AutomationRun, EstadoDoCanal, HookCatalogItem, ScheduleSpec, ScheduleStatus, ServerFrame, WorkflowRunState } from '@agent-hub/core'
 import { onMounted, onUnmounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import Card from '../components/ui/Card.vue'
 import EmptyState from '../components/ui/EmptyState.vue'
-import Field from '../components/ui/Field.vue'
 import PageHeader from '../components/ui/PageHeader.vue'
+import StatusBadge from '../components/ui/StatusBadge.vue'
 import { client } from '../daemon/client'
 import { useConnection } from '../stores/connection'
-import { useSessions } from '../stores/sessions'
 import { avisar, confirmar, mensagemDeErro } from '../ui/feedback'
+import { descreverHorario, nomeDaRotina } from '../ui/horarios'
 
-const sessions = useSessions()
+const router = useRouter()
 const schedules = ref<ScheduleStatus[]>([])
 const runs = ref<AutomationRun[]>([])
+const canais = ref<EstadoDoCanal[]>([])
 const paused = ref(false)
 const error = ref('')
 const carregando = ref(true)
-const form = ref({
-  id: '',
-  cron: '0 8 * * 1-5',
-  timezone: 'America/Sao_Paulo',
-  agent: '',
-  workspace: '',
-  prompt: '',
-  mode: 'draft' as 'draft' | 'normal',
-  run_usd: 0.2,
-  day_usd: 0.5,
-})
-
+const alternando = ref<string | null>(null)
 
 const ganchos = ref<HookCatalogItem[]>([])
 const extras = ref(0)
@@ -61,10 +52,19 @@ async function loadParados(): Promise<void> {
   }
 }
 
+async function loadCanais(): Promise<void> {
+  try {
+    canais.value = (await client.request({ type: 'canais.estado' }, 'canais.estado')).canais
+  } catch {
+    canais.value = []
+  }
+}
+
 function continuar(runId: string): void {
   client.send({ type: 'workflow.resume', run_id: runId })
   parados.value = parados.value.filter((p) => p.runId !== runId)
 }
+
 async function load(): Promise<void> {
   error.value = ''
   try {
@@ -80,49 +80,44 @@ async function load(): Promise<void> {
   }
 }
 
-async function save(): Promise<void> {
+function paraSpec(s: ScheduleStatus): ScheduleSpec {
+  const { source: _source, lastRunAt: _last, nextRunAt: _next, running: _running, todayUsd: _today, ...spec } = s
+  return spec
+}
+
+function runNow(s: ScheduleStatus): void {
   try {
-    await client.request(
-      {
-        type: 'schedule.upsert',
-        schedule: {
-          id: form.value.id,
-          cron: form.value.cron,
-          timezone: form.value.timezone,
-          agent: form.value.agent,
-          workspace: form.value.workspace,
-          prompt: form.value.prompt,
-          mode: form.value.mode,
-          budget: { run_usd: Number(form.value.run_usd), day_usd: Number(form.value.day_usd) },
-          overlap: 'skip',
-          missed: 'skip',
-          enabled: true,
-        },
-      },
-      'schedule.saved',
-    )
-    avisar(`Rotina ${form.value.id} salva.`)
+    client.send({ type: 'schedule.run_now', id: s.id })
+    avisar(`Rotina "${nomeDaRotina(s.id)}" iniciada. O resultado aparece nas conversas e no canal de aviso.`, 'info')
+  } catch (err) {
+    avisar(mensagemDeErro(err), 'erro')
+  }
+}
+
+async function alternarRotina(s: ScheduleStatus): Promise<void> {
+  alternando.value = s.id
+  try {
+    await client.request({ type: 'schedule.upsert', schedule: { ...paraSpec(s), enabled: !s.enabled } }, 'schedule.saved')
+    avisar(s.enabled ? `Rotina "${nomeDaRotina(s.id)}" desligada.` : `Rotina "${nomeDaRotina(s.id)}" ligada.`)
     await load()
   } catch (err) {
     avisar(mensagemDeErro(err), 'erro')
+  } finally {
+    alternando.value = null
   }
 }
 
-function runNow(id: string): void {
-  try {
-    client.send({ type: 'schedule.run_now', id })
-    avisar(`Rotina ${id} iniciada. O resultado aparece nas sessões e no canal de aviso.`, 'info')
-  } catch (err) {
-    avisar(mensagemDeErro(err), 'erro')
-  }
-}
-
-async function remove(id: string): Promise<void> {
-  const ok = await confirmar({ titulo: `Apagar a rotina ${id}?`, detalhe: 'Ela deixa de rodar. As sessões que ela já criou continuam.', botao: 'Apagar rotina' })
+async function remove(s: ScheduleStatus): Promise<void> {
+  const ok = await confirmar({
+    titulo: `Apagar a rotina "${nomeDaRotina(s.id)}"?`,
+    detalhe: 'Ela deixa de rodar. As conversas que ela já criou continuam.',
+    botao: 'Apagar rotina',
+    perigo: true,
+  })
   if (!ok) return
   try {
-    await client.request({ type: 'schedule.delete', id }, 'schedule.deleted')
-    avisar(`Rotina ${id} apagada.`)
+    await client.request({ type: 'schedule.delete', id: s.id }, 'schedule.deleted')
+    avisar(`Rotina "${nomeDaRotina(s.id)}" apagada.`)
     await load()
   } catch (err) {
     avisar(mensagemDeErro(err), 'erro')
@@ -134,13 +129,37 @@ function toggle(): void {
 }
 
 function when(ts: number | null): string {
-  return ts ? new Date(ts).toLocaleString() : 'nunca'
+  return ts ? new Date(ts).toLocaleString('pt-BR') : 'nunca'
+}
+
+function proximaExecucao(s: ScheduleStatus): string {
+  if (!s.enabled) return 'não roda enquanto estiver desligada'
+  if (!s.nextRunAt) return 'sem próxima execução'
+  return new Date(s.nextRunAt).toLocaleString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+}
+
+function avisos(s: ScheduleStatus): string {
+  const ids = s.notify ?? []
+  if (!ids.length) return 'Só no Agent Hub'
+  const nomes = ids.map((id) => canais.value.find((c) => c.id === id)?.nome ?? id)
+  return `Avisa em: ${nomes.join(', ')}`
+}
+
+function status(s: ScheduleStatus): { estado: 'ok' | 'desligado' | 'atencao' | 'andamento'; texto: string } {
+  if (s.running) return { estado: 'andamento', texto: 'Rodando agora' }
+  if (!s.enabled) return { estado: 'desligado', texto: 'Desligada' }
+  if (paused.value) return { estado: 'atencao', texto: 'Todas pausadas' }
+  return { estado: 'ok', texto: 'Ativa' }
+}
+
+function dolares(usd: number): string {
+  return `US$ ${usd.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: usd > 0 && usd < 0.01 ? 4 : 2 })}`
 }
 
 function onFrame(f: ServerFrame): void {
   if (f.type === 'automation.state') paused.value = f.paused
   if (f.type === 'automation.started' || f.type === 'automation.finished' || f.type === 'schedule.saved' || f.type === 'schedule.deleted') void load()
-  if (f.type === 'automation.error') avisar(`Rotina ${f.id}: ${f.message}`, 'erro')
+  if (f.type === 'automation.error') avisar(`Rotina "${nomeDaRotina(f.id)}": ${f.message}`, 'erro')
 }
 
 let off: (() => void) | null = null
@@ -148,6 +167,7 @@ onMounted(async () => {
   off = client.on(onFrame)
   await useConnection().whenOnline().catch(() => undefined)
   void load()
+  void loadCanais()
   void loadGanchos()
   void loadParados()
 })
@@ -156,57 +176,51 @@ onUnmounted(() => off?.())
 
 <template>
   <div class="ui-page">
-    <PageHeader titulo="Rotinas" descricao="Agentes que rodam sozinhos em horários definidos, ações automáticas em volta das ferramentas e o histórico do que já rodou.">
+    <PageHeader titulo="Rotinas" descricao="Agentes que trabalham sozinhos em horários definidos.">
       <template #acoes>
-        <button :class="{ primary: paused }" @click="toggle">{{ paused ? 'Retomar tudo' : 'Pausar tudo' }}</button>
+        <button :class="{ primary: paused }" @click="toggle">{{ paused ? 'Retomar todas' : 'Pausar todas' }}</button>
+        <button class="primary" @click="router.push('/settings/automacoes/nova')">Nova rotina</button>
       </template>
     </PageHeader>
 
-    <Card titulo="Agendamentos" descricao="Rotinas cadastradas e quando cada uma roda.">
+    <Card titulo="Suas rotinas" descricao="O que cada agente faz sozinho e quando.">
       <EmptyState v-if="carregando" titulo="Carregando" carregando />
       <EmptyState v-else-if="error" titulo="Não consegui carregar as rotinas" :texto="error">
         <button @click="load">Tentar de novo</button>
       </EmptyState>
-      <EmptyState v-else-if="!schedules.length" titulo="Nenhuma rotina ainda" texto="Crie a primeira no formulário abaixo." />
+      <EmptyState v-else-if="!schedules.length" titulo="Nenhuma rotina ainda" texto="Uma rotina faz um agente trabalhar sozinho no horário que você escolher.">
+        <button class="primary" @click="router.push('/settings/automacoes/nova')">Criar rotina</button>
+      </EmptyState>
       <ul v-else class="ui-lista">
-        <li v-for="s in schedules" :key="s.id" class="ui-lista-item">
+        <li v-for="s in schedules" :key="s.id" class="ui-lista-item rotina-item">
           <span class="ui-lista-item-texto">
-            <strong>{{ s.id }} <span class="tag">{{ s.source }}</span> <span v-if="s.running" class="tag">rodando</span></strong>
-            <span class="muted">{{ s.cron ?? `em ${when(s.at ?? null)}` }} ({{ s.timezone }}), {{ s.agent }}, {{ s.mode }}</span>
-            <span class="muted">próximo {{ when(s.nextRunAt) }}, último {{ when(s.lastRunAt) }}, hoje {{ s.todayUsd.toFixed(4) }} de {{ s.budget.day_usd }} USD</span>
+            <span class="rotina-titulo">
+              <strong>{{ nomeDaRotina(s.id) }}</strong>
+              <StatusBadge :estado="status(s).estado" :texto="status(s).texto" />
+            </span>
+            <span class="rotina-horario">{{ descreverHorario(s) }}</span>
+            <span class="muted">{{ s.role || s.agent }} · {{ avisos(s) }}</span>
+            <span class="muted">Próxima: {{ proximaExecucao(s) }} · Gasto hoje: {{ dolares(s.todayUsd) }} de {{ dolares(s.budget.day_usd) }}</span>
           </span>
           <span class="ui-lista-item-acoes">
-            <button @click="runNow(s.id)">Rodar agora</button>
-            <button class="danger" @click="remove(s.id)">Apagar</button>
+            <RouterLink :to="`/settings/automacoes/${encodeURIComponent(s.id)}`" class="ui-link-botao">Editar</RouterLink>
+            <button @click="runNow(s)">Rodar agora</button>
+            <button
+              type="button"
+              role="switch"
+              :aria-checked="s.enabled"
+              :class="['ui-interruptor', { ligado: s.enabled }]"
+              :disabled="alternando === s.id"
+              :title="s.enabled ? 'Desligar rotina' : 'Ligar rotina'"
+              @click="alternarRotina(s)"
+            >
+              <span class="ui-interruptor-trilho" aria-hidden="true"><span class="ui-interruptor-bola"></span></span>
+              {{ s.enabled ? 'Ligada' : 'Desligada' }}
+            </button>
+            <button class="danger" @click="remove(s)">Apagar</button>
           </span>
         </li>
       </ul>
-    </Card>
-
-    <Card titulo="Nova rotina" descricao="Escolha o agente, o horário e o que ele deve fazer.">
-      <form class="ui-form duas-colunas" @submit.prevent="save">
-        <Field rotulo="Id"><input v-model="form.id" type="text" placeholder="resumo-diario" spellcheck="false" /></Field>
-        <Field rotulo="Agente">
-          <select v-model="form.agent">
-            <option v-for="a in sessions.agents" :key="a.name" :value="a.name">{{ a.name }}</option>
-          </select>
-        </Field>
-        <Field rotulo="Cron"><input v-model="form.cron" type="text" spellcheck="false" /></Field>
-        <Field rotulo="Fuso"><input v-model="form.timezone" type="text" spellcheck="false" /></Field>
-        <Field rotulo="Workspace"><input v-model="form.workspace" type="text" spellcheck="false" /></Field>
-        <Field rotulo="Modo">
-          <select v-model="form.mode">
-            <option value="draft">rascunho (sem escrita nem execução)</option>
-            <option value="normal">normal (política do perfil)</option>
-          </select>
-        </Field>
-        <Field rotulo="Prompt" style="grid-column: 1 / -1"><textarea v-model="form.prompt" rows="3"></textarea></Field>
-        <Field rotulo="Por run USD"><input v-model="form.run_usd" type="number" step="0.01" min="0" /></Field>
-        <Field rotulo="Por dia USD"><input v-model="form.day_usd" type="number" step="0.01" min="0" /></Field>
-        <div class="ui-form-acoes">
-          <button class="primary" type="submit">Salvar</button>
-        </div>
-      </form>
     </Card>
 
     <Card v-if="parados.length" titulo="Workflows parados no meio" descricao="Execuções que pararam antes de terminar e podem continuar de onde pararam.">
@@ -215,7 +229,7 @@ onUnmounted(() => off?.())
           <span class="tag">{{ p.status }}</span>
           <span class="ui-lista-item-texto">
             <strong>{{ p.name }}</strong>
-            <span class="muted">próxima etapa {{ p.nextStep ?? '-' }}, já gastou {{ p.costUsd.toFixed(4) }} USD</span>
+            <span class="muted">próxima etapa {{ p.nextStep ?? '-' }}, já gastou {{ dolares(p.costUsd) }}</span>
           </span>
           <button class="primary small" @click="continuar(p.runId)">Continuar</button>
         </li>
@@ -224,7 +238,7 @@ onUnmounted(() => off?.())
 
     <Card
       titulo="Ganchos prontos"
-      :descricao="`Comandos que o harness dispara sozinho em volta das ferramentas. Ligar escreve em agents/hooks.json; desligar tira de lá. ${extras} gancho(s) seu(s) fora deste catálogo continuam como estão.`"
+      :descricao="`Ações que o Agent Hub dispara sozinho em volta das ferramentas dos agentes. ${extras} gancho(s) seu(s) fora deste catálogo continuam como estão.`"
     >
       <EmptyState v-if="!ganchos.length" titulo="Nenhum gancho disponível" />
       <ul v-else class="ui-lista">
@@ -247,10 +261,10 @@ onUnmounted(() => off?.())
       <ul v-else class="ui-lista">
         <li v-for="r in runs" :key="r.id" class="ui-lista-item">
           <RouterLink :to="{ name: 'chat', params: { id: r.sessionId } }">
-            <span class="tag">{{ r.kind }}</span> {{ r.automationId }}
+            <span class="tag">{{ r.kind === 'schedule' ? 'Rotina' : 'Gatilho' }}</span> {{ nomeDaRotina(r.automationId) }}
             <span class="muted small">{{ when(r.startedAt) }}</span>
             <span class="tag">{{ r.status }}</span>
-            <span class="cost">{{ r.costUsd.toFixed(4) }} USD</span>
+            <span class="cost">{{ dolares(r.costUsd) }}</span>
           </RouterLink>
         </li>
       </ul>

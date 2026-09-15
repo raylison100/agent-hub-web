@@ -451,3 +451,212 @@ button.icon {
   display: inline-flex;
   color: var(--accent);
 }
+
+.ui-interruptor {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.ui-interruptor-trilho {
+  position: relative;
+  width: 30px;
+  height: 17px;
+  border-radius: 999px;
+  background: var(--border-strong);
+  transition: background 0.15s;
+  flex: none;
+}
+
+.ui-interruptor-bola {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.15s;
+}
+
+.ui-interruptor.ligado .ui-interruptor-trilho {
+  background: var(--ok);
+}
+
+.ui-interruptor.ligado .ui-interruptor-bola {
+  transform: translateX(13px);
+}
+
+.ui-segmentos,
+.ui-dias {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ui-segmento,
+.ui-dia {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  font-size: var(--fs-base);
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+}
+
+.ui-dia {
+  min-width: 48px;
+  justify-content: center;
+}
+
+.ui-segmento.ativo,
+.ui-dia.ativo {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.ui-segmento:focus-within,
+.ui-dia:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.ui-segmento input,
+.ui-dia input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  pointer-events: none;
+}
+
+.ui-opcoes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ui-opcao {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.ui-opcao input,
+.rotina-inline input[type='checkbox'] {
+  display: inline-block;
+  width: auto;
+  margin: 3px 0 0;
+  flex: none;
+}
+
+.rotina-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.rotina-largo {
+  grid-column: 1 / -1;
+}
+
+.rotina-nota {
+  margin: 0;
+}
+
+.rotina-pasta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.rotina-pasta input {
+  flex: 1;
+  min-width: 0;
+}
+
+.rotina-construtor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.rotina-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.rotina-inline input:not([type='checkbox']),
+.rotina-inline select {
+  width: auto;
+  margin-top: 0;
+}
+
+.rotina-inline.rotina-largo,
+.rotina-inline.rotina-largo input {
+  flex: 1;
+  width: 100%;
+}
+
+.rotina-previa {
+  margin: 0;
+  font-size: var(--fs-small);
+}
+
+.rotina-previa.erro {
+  color: var(--error);
+}
+
+.rotina-tecnico code {
+  font-family: var(--mono);
+}
+
+.rotina-ativa {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.rotina-rodape {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) 0;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+}
+
+.rotina-rodape-espaco {
+  flex: 1;
+}
+
+.rotina-titulo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.rotina-item {
+  flex-wrap: wrap;
+}
+
+.rotina-horario {
+  font-size: var(--fs-base);
+}

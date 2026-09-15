@@ -36,6 +36,8 @@ export const router = createRouter({
         { path: 'custos', name: 'costs', component: CostView },
         { path: 'automacoes', name: 'automations', component: AutomationsView },
         { path: 'agentes', name: 'agents', component: AgentsView },
+        { path: 'agentes/:nome', name: 'agent-editor', component: () => import('./views/AgentEditorView.vue'), props: true },
+        { path: 'automacoes/:id', name: 'routine-editor', component: () => import('./views/RoutineEditorView.vue'), props: true },
         { path: 'conectores', name: 'connectors', component: ConnectorsView },
         { path: 'contexto', name: 'context', component: ContextView },
         { path: 'skills', name: 'skills', component: SkillsView },

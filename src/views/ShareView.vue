@@ -2,12 +2,18 @@
 import type { ConvidadoResumo, RecebidoResumo } from '@agent-hub/core'
 import { computed, onMounted, ref } from 'vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import Card from '../components/ui/Card.vue'
+import EmptyState from '../components/ui/EmptyState.vue'
+import Field from '../components/ui/Field.vue'
+import PageHeader from '../components/ui/PageHeader.vue'
 import { client } from '../daemon/client'
 import { useConnection } from '../stores/connection'
 import { useSessions } from '../stores/sessions'
+import { avisar, mensagemDeErro } from '../ui/feedback'
 
 const sessions = useSessions()
 const erro = ref('')
+const carregando = ref(true)
 const relayConfigurado = ref(false)
 const modelosLocais = ref<string[]>([])
 const convidados = ref<ConvidadoResumo[]>([])
@@ -37,7 +43,9 @@ async function carregar(): Promise<void> {
     convidados.value = lista.convidados
     recebidos.value = (await client.request({ type: 'recebidos.listar' }, 'recebidos.lista')).recebidos
   } catch (err) {
-    erro.value = err instanceof Error ? err.message : String(err)
+    erro.value = mensagemDeErro(err)
+  } finally {
+    carregando.value = false
   }
 }
 
@@ -47,7 +55,6 @@ onMounted(async () => {
 })
 
 async function criarConvite(): Promise<void> {
-  erro.value = ''
   conviteGerado.value = ''
   try {
     const res = await client.request(
@@ -57,9 +64,10 @@ async function criarConvite(): Promise<void> {
     conviteGerado.value = res.convite
     nome.value = ''
     escolhidos.value = []
+    avisar('Convite gerado.')
     await carregar()
   } catch (err) {
-    erro.value = err instanceof Error ? err.message : String(err)
+    avisar(mensagemDeErro(err), 'erro')
   }
 }
 
@@ -76,19 +84,20 @@ async function confirmarRevogar(): Promise<void> {
   try {
     const lista = await client.request({ type: 'compartilhar.revogar', id: alvo.id }, 'compartilhar.lista')
     convidados.value = lista.convidados
+    avisar(`Convite de ${alvo.nome} revogado.`)
   } catch (err) {
-    erro.value = err instanceof Error ? err.message : String(err)
+    avisar(mensagemDeErro(err), 'erro')
   }
 }
 
 async function adicionarConvite(): Promise<void> {
-  erro.value = ''
   try {
     recebidos.value = (await client.request({ type: 'recebidos.adicionar', convite: textoConvite.value, no_roteamento: noRoteamento.value }, 'recebidos.lista')).recebidos
     textoConvite.value = ''
+    avisar('Convite adicionado.')
     await sessions.loadAgents()
   } catch (err) {
-    erro.value = err instanceof Error ? err.message : String(err)
+    avisar(mensagemDeErro(err), 'erro')
   }
 }
 
@@ -110,7 +119,7 @@ async function confirmarRemover(): Promise<void> {
     recebidos.value = (await client.request({ type: 'recebidos.remover', id: alvo.id }, 'recebidos.lista')).recebidos
     await sessions.loadAgents()
   } catch (err) {
-    erro.value = err instanceof Error ? err.message : String(err)
+    avisar(mensagemDeErro(err), 'erro')
   }
 }
 
@@ -120,94 +129,100 @@ function formatar(n: number): string {
 </script>
 
 <template>
-  <section class="settings-page">
-    <h1>Compartilhar modelos</h1>
-    <p class="muted">
-      Pessoas de confiança usam os modelos do Ollama umas das outras pelo relay. Só a chamada ao modelo atravessa: as
-      ferramentas, os arquivos e as aprovações ficam na máquina de quem usa. Quem compartilha vê os pedidos, porque é a
-      placa dele que processa.
-    </p>
-    <p v-if="erro" class="error">{{ erro }}</p>
+  <div class="ui-page">
+    <PageHeader
+      titulo="Modelos compartilhados"
+      descricao="Use os modelos do Ollama de pessoas de confiança, ou libere os seus para elas. Arquivos e ferramentas continuam na máquina de quem usa."
+    />
 
-    <div class="bloco">
-      <h2>Compartilhar os meus</h2>
-      <p v-if="!relayConfigurado" class="muted small">
-        Precisa de um relay: configure <code>relay_url</code> no <code>config.toml</code> e reinicie o daemon.
-      </p>
-      <form v-else @submit.prevent="criarConvite">
-        <label>
-          Para quem
-          <input v-model="nome" type="text" autocomplete="off" placeholder="nome da pessoa" />
-        </label>
-        <fieldset>
-          <legend class="small">Modelos liberados</legend>
-          <p v-if="!modelosLocais.length" class="muted small">Nenhum modelo encontrado no Ollama desta máquina.</p>
-          <label v-for="m in modelosLocais" :key="m" class="opcao">
-            <input v-model="escolhidos" type="checkbox" :value="m" />
-            <code>{{ m }}</code>
-          </label>
-        </fieldset>
-        <div class="row">
-          <label>
-            Limite de tokens por dia
+    <EmptyState v-if="carregando" titulo="Carregando" carregando />
+    <EmptyState v-else-if="erro" titulo="Não consegui carregar os compartilhamentos" :texto="erro">
+      <button @click="carregar">Tentar de novo</button>
+    </EmptyState>
+
+    <template v-else>
+      <Card
+        titulo="Compartilhar os meus"
+        descricao="Gere um convite para alguém usar os modelos desta máquina. Quem compartilha vê os pedidos, porque é a placa dele que processa."
+      >
+        <EmptyState v-if="!relayConfigurado" titulo="Falta configurar o relay">
+          <p class="muted small">Configure <code>relay_url</code> no <code>config.toml</code> e reinicie o daemon.</p>
+        </EmptyState>
+        <form v-else class="ui-form duas-colunas" @submit.prevent="criarConvite">
+          <Field rotulo="Para quem" obrigatorio style="grid-column: 1 / -1">
+            <input v-model="nome" type="text" autocomplete="off" placeholder="nome da pessoa" />
+          </Field>
+          <fieldset style="grid-column: 1 / -1">
+            <legend class="small">Modelos liberados</legend>
+            <p v-if="!modelosLocais.length" class="muted small">Nenhum modelo encontrado no Ollama desta máquina.</p>
+            <label v-for="m in modelosLocais" :key="m" class="opcao">
+              <input v-model="escolhidos" type="checkbox" :value="m" />
+              <code>{{ m }}</code>
+            </label>
+          </fieldset>
+          <Field rotulo="Limite de tokens por dia">
             <input v-model="limite" type="number" min="1000" step="1000" />
-          </label>
-          <label>
-            Janela de contexto
+          </Field>
+          <Field rotulo="Janela de contexto">
             <input v-model="janela" type="number" min="1024" step="1024" />
-          </label>
-        </div>
-        <button class="primary" type="submit" :disabled="!nome.trim() || !escolhidos.length">Gerar convite</button>
-      </form>
-      <div v-if="conviteGerado" class="convite">
-        <p class="small">Mande este convite só para essa pessoa, por um canal privado. Quem tem o convite usa os modelos liberados.</p>
-        <code class="texto">{{ conviteGerado }}</code>
-        <button type="button" @click="copiarConvite">{{ copiado ? 'Copiado' : 'Copiar convite' }}</button>
-      </div>
-      <h2>Convites emitidos</h2>
-      <p v-if="!convidados.length" class="muted small">Nenhum.</p>
-      <ul class="list">
-        <li v-for="c in convidados" :key="c.id">
-          <strong>{{ c.nome }}</strong>
-          <span class="muted small">{{ c.modelos.join(', ') }}</span>
-          <span class="muted small">
-            {{ c.revogado_em ? 'revogado' : `${formatar(c.uso_hoje)} de ${formatar(c.limite_tokens_dia)} tokens hoje, ${c.conectado ? 'sala no ar' : 'sala fora do ar'}` }}
-          </span>
-          <span class="spacer"></span>
-          <button v-if="!c.revogado_em" class="ghost small" type="button" @click="revogar = c">Revogar</button>
-        </li>
-      </ul>
-      <p v-if="ativos.length" class="muted small">{{ ativos.length }} convite(s) ativo(s).</p>
-    </div>
-
-    <div class="bloco">
-      <h2>Modelos que recebi</h2>
-      <form @submit.prevent="adicionarConvite">
-        <label>
-          Convite
-          <textarea v-model="textoConvite" rows="3" spellcheck="false" placeholder="agenthub-convite-1..."></textarea>
-        </label>
-        <label class="opcao">
-          <input v-model="noRoteamento" type="checkbox" />
-          Usar só quando eu escolher o agente (fora do roteamento automático)
-        </label>
-        <button class="primary" type="submit" :disabled="!textoConvite.trim()">Adicionar</button>
-      </form>
-      <p v-if="!recebidos.length" class="muted small">Nenhum convite recebido.</p>
-      <ul class="list">
-        <li v-for="r in recebidos" :key="r.id" class="recebido">
-          <div>
-            <strong>{{ r.anfitriao }}</strong>
-            <span class="muted small">agentes: {{ r.agentes.join(', ') }}</span>
-            <span class="muted small">{{ r.no_roteamento ? 'só quando escolhido' : 'entra no roteamento automático' }}, até {{ formatar(r.limite_tokens_dia) }} tokens por dia</span>
-            <span v-if="testes.get(r.id)" class="small">{{ testes.get(r.id) }}</span>
+          </Field>
+          <div class="ui-form-acoes">
+            <button class="primary" type="submit" :disabled="!nome.trim() || !escolhidos.length">Gerar convite</button>
           </div>
-          <span class="spacer"></span>
-          <button class="ghost small" type="button" @click="testar(r)">Testar</button>
-          <button class="ghost small" type="button" @click="remover = r">Remover</button>
-        </li>
-      </ul>
-    </div>
+        </form>
+        <div v-if="conviteGerado" class="convite">
+          <p class="small">Mande este convite só para essa pessoa, por um canal privado. Quem tem o convite usa os modelos liberados.</p>
+          <code class="texto">{{ conviteGerado }}</code>
+          <button type="button" @click="copiarConvite">{{ copiado ? 'Copiado' : 'Copiar convite' }}</button>
+        </div>
+      </Card>
+
+      <Card titulo="Convites emitidos" :descricao="ativos.length ? `${ativos.length} convite(s) ativo(s).` : 'Quem pode usar os seus modelos.'">
+        <EmptyState v-if="!convidados.length" titulo="Nenhum convite emitido" texto="Gere um convite no quadro acima para liberar os seus modelos." />
+        <ul v-else class="ui-lista">
+          <li v-for="c in convidados" :key="c.id" class="ui-lista-item">
+            <span class="ui-lista-item-texto">
+              <strong>{{ c.nome }}</strong>
+              <span class="muted">{{ c.modelos.join(', ') }}</span>
+              <span class="muted">
+                {{ c.revogado_em ? 'revogado' : `${formatar(c.uso_hoje)} de ${formatar(c.limite_tokens_dia)} tokens hoje, ${c.conectado ? 'sala no ar' : 'sala fora do ar'}` }}
+              </span>
+            </span>
+            <button v-if="!c.revogado_em" class="danger small" type="button" @click="revogar = c">Revogar</button>
+          </li>
+        </ul>
+      </Card>
+
+      <Card titulo="Modelos que recebi" descricao="Cole aqui o convite que alguém mandou para usar os modelos dessa pessoa.">
+        <form class="ui-form" @submit.prevent="adicionarConvite">
+          <Field rotulo="Convite">
+            <textarea v-model="textoConvite" rows="3" spellcheck="false" placeholder="agenthub-convite-1..."></textarea>
+          </Field>
+          <label class="opcao">
+            <input v-model="noRoteamento" type="checkbox" />
+            Usar só quando eu escolher o agente (fora do roteamento automático)
+          </label>
+          <div class="ui-form-acoes">
+            <button class="primary" type="submit" :disabled="!textoConvite.trim()">Adicionar</button>
+          </div>
+        </form>
+        <EmptyState v-if="!recebidos.length" titulo="Nenhum convite recebido" />
+        <ul v-else class="ui-lista">
+          <li v-for="r in recebidos" :key="r.id" class="ui-lista-item">
+            <span class="ui-lista-item-texto">
+              <strong>{{ r.anfitriao }}</strong>
+              <span class="muted">agentes: {{ r.agentes.join(', ') }}</span>
+              <span class="muted">{{ r.no_roteamento ? 'só quando escolhido' : 'entra no roteamento automático' }}, até {{ formatar(r.limite_tokens_dia) }} tokens por dia</span>
+              <span v-if="testes.get(r.id)" class="small">{{ testes.get(r.id) }}</span>
+            </span>
+            <span class="ui-lista-item-acoes">
+              <button class="ghost small" type="button" @click="testar(r)">Testar</button>
+              <button class="danger small" type="button" @click="remover = r">Remover</button>
+            </span>
+          </li>
+        </ul>
+      </Card>
+    </template>
 
     <ConfirmDialog
       v-if="revogar"
@@ -225,7 +240,7 @@ function formatar(n: number): string {
       @confirm="confirmarRemover"
       @cancel="remover = null"
     />
-  </section>
+  </div>
 </template>
 
 <style scoped>
@@ -256,11 +271,6 @@ fieldset {
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   font-family: var(--mono);
-}
-
-.recebido div {
-  display: grid;
-  gap: 2px;
 }
 
 textarea {

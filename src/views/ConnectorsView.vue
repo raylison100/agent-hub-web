@@ -1,9 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import Card from '../components/ui/Card.vue'
+import EmptyState from '../components/ui/EmptyState.vue'
+import PageHeader from '../components/ui/PageHeader.vue'
 import { client } from '../daemon/client'
 import { useConnection } from '../stores/connection'
 import { useSessions } from '../stores/sessions'
+import { avisar } from '../ui/feedback'
 
 interface Server {
   name: string
@@ -26,7 +30,7 @@ const selected = ref<string | null>(null)
 const paste = ref('')
 const adding = ref(false)
 const error = ref('')
-const info = ref('')
+const carregando = ref(true)
 const secrets = ref<string[]>([])
 const pendingRemove = ref<string | null>(null)
 const busy = ref(false)
@@ -53,22 +57,24 @@ function describe(err: unknown): string {
 }
 
 async function load(): Promise<void> {
+  error.value = ''
   try {
     servers.value = (await client.request({ type: 'mcp.servers' }, 'mcp.servers')).servers
     if (!selected.value || !servers.value.some((s) => s.name === selected.value)) selected.value = servers.value[0]?.name ?? null
   } catch (err) {
     error.value = describe(err)
+    if (servers.value.length) avisar(error.value, 'erro')
+  } finally {
+    carregando.value = false
   }
 }
 
 async function run(action: () => Promise<void>): Promise<void> {
-  error.value = ''
-  info.value = ''
   busy.value = true
   try {
     await action()
   } catch (err) {
-    error.value = describe(err)
+    avisar(describe(err), 'erro')
   } finally {
     busy.value = false
     await load()
@@ -87,7 +93,7 @@ async function importar(): Promise<void> {
   await run(async () => {
     const res = await client.request({ type: 'mcp.import', source: 'claude-code' }, 'mcp.saved', 30000)
     secrets.value = res.secrets
-    info.value = `Importado: ${res.added.join(', ')}`
+    avisar(`Importado: ${res.added.join(', ')}`)
   })
 }
 
@@ -98,7 +104,7 @@ async function adicionar(): Promise<void> {
     paste.value = ''
     adding.value = false
     secrets.value = res.secrets
-    info.value = `Adicionado: ${res.added.join(', ')}`
+    avisar(`Adicionado: ${res.added.join(', ')}`)
     selected.value = res.added[0] ?? selected.value
   })
 }
@@ -135,93 +141,99 @@ async function remover(): Promise<void> {
 </script>
 
 <template>
-  <section class="settings-page">
-    <div class="page-head">
-      <div>
-        <h1>Servidores MCP</h1>
-        <p class="muted small">Adicione e gerencie os conectores que os agentes podem usar. Cada perfil escolhe quais deles enxerga.</p>
-      </div>
-      <div class="row">
+  <div class="ui-page">
+    <PageHeader titulo="Conectores" descricao="Serviços externos que os agentes podem usar, como arquivos, e-mail ou sistemas da empresa. Cada agente escolhe quais enxerga.">
+      <template #acoes>
         <button class="ghost" :disabled="busy" @click="importar">Importar do Claude Code</button>
         <button class="primary" :disabled="busy" @click="adding = !adding">Adicionar</button>
-      </div>
-    </div>
+      </template>
+    </PageHeader>
 
-    <div v-if="adding" class="add-box">
-      <p class="muted small">Cole o JSON que a documentação do servidor mostra. Aceita mcpServers, servers ou um servidor solto.</p>
-      <textarea v-model="paste" rows="8" class="mono" :placeholder="exemplo" spellcheck="false"></textarea>
-      <div class="row">
-        <button class="primary" :disabled="busy || !paste.trim()" @click="adicionar">Salvar conector</button>
-        <button class="ghost" @click="adding = false; paste = ''">Cancelar</button>
-      </div>
-    </div>
-
-    <p v-if="info" class="muted small">{{ info }}</p>
-    <p v-if="secrets.length" class="warn small">Cadastre em <RouterLink to="/settings/chaves">Chaves</RouterLink>: {{ secrets.join(', ') }}</p>
-    <p v-if="error" class="error small">{{ error }}</p>
-
-    <div v-if="servers.length" class="master-detail">
-      <div class="master">
-        <button
-          v-for="s in servers"
-          :key="s.name"
-          class="master-item"
-          :class="{ active: s.name === selected }"
-          @click="selected = s.name"
-        >
-          <span>{{ s.name }}</span>
-          <span class="tag" :data-state="estado(s).tom">{{ estado(s).texto }}</span>
-        </button>
-      </div>
-
-      <div v-if="current" class="detail">
-        <div class="detail-head">
-          <h2>{{ current.name }}</h2>
-          <span class="tag" :data-state="estado(current).tom">{{ estado(current).texto }}</span>
-          <span class="spacer"></span>
-          <button class="primary small" :disabled="busy" @click="alternar(current)">{{ current.enabled ? 'Desconectar' : 'Conectar' }}</button>
-          <button v-if="current.oauth" class="ghost small" @click="autorizar(current.name)">
-            {{ current.oauth === 'autorizado' ? 'Autorizar de novo' : 'Autorizar' }}
-          </button>
-          <button class="ghost small" :disabled="busy" @click="pendingRemove = current.name">Remover</button>
+    <Card v-if="adding" titulo="Adicionar conector" descricao="Cole o JSON que a documentação do servidor mostra. Aceita mcpServers, servers ou um servidor solto.">
+      <div class="ui-form">
+        <textarea v-model="paste" rows="8" class="mono" :placeholder="exemplo" spellcheck="false"></textarea>
+        <div class="ui-form-acoes">
+          <button class="primary" :disabled="busy || !paste.trim()" @click="adicionar">Salvar conector</button>
+          <button class="ghost" @click="adding = false; paste = ''">Cancelar</button>
         </div>
+      </div>
+    </Card>
 
-        <template v-if="current.url">
-          <h3>URL</h3>
-          <p class="mono small break">{{ current.url }}</p>
-        </template>
-        <template v-else>
-          <h3>Comando</h3>
-          <p class="mono small">{{ current.command }}</p>
-          <h3>Argumentos</h3>
-          <p class="mono small break">{{ current.args?.join(' ') || '-' }}</p>
-        </template>
+    <Card v-if="secrets.length" titulo="Faltam chaves de acesso" descricao="Estes conectores precisam de chaves para funcionar.">
+      <p class="warn small">Cadastre em <RouterLink to="/settings/chaves">Chaves de acesso</RouterLink>: {{ secrets.join(', ') }}</p>
+    </Card>
 
-        <h3>Agentes que usam</h3>
-        <div class="agent-chips">
+    <EmptyState v-if="carregando" titulo="Carregando" carregando />
+    <EmptyState v-else-if="error && !servers.length" titulo="Não consegui carregar os conectores" :texto="error">
+      <button @click="load">Tentar de novo</button>
+    </EmptyState>
+
+    <Card v-else-if="servers.length" titulo="Conectores configurados" descricao="Escolha um conector para ver os detalhes e quais agentes o usam.">
+      <div class="master-detail">
+        <div class="master">
           <button
-            v-for="a in sessions.agents"
-            :key="a.name"
-            class="chip-button"
-            :class="{ auto: current.agents?.includes(a.name) }"
-            :disabled="busy"
-            @click="alternarAgente(current, a.name)"
+            v-for="s in servers"
+            :key="s.name"
+            class="master-item"
+            :class="{ active: s.name === selected }"
+            @click="selected = s.name"
           >
-            {{ a.name }}
+            <span>{{ s.name }}</span>
+            <span class="tag" :data-state="estado(s).tom">{{ estado(s).texto }}</span>
           </button>
         </div>
-        <p v-if="!current.agents?.length" class="warn small">Nenhum agente usa este conector. Marque um agente acima e o daemon passa a manter a conexão dele sozinho.</p>
 
-        <h3>Ferramentas</h3>
-        <p class="small">{{ current.connected ? `${current.tools} disponíveis` : 'conecte para listar' }}</p>
+        <div v-if="current" class="detail">
+          <div class="detail-head">
+            <h2>{{ current.name }}</h2>
+            <span class="tag" :data-state="estado(current).tom">{{ estado(current).texto }}</span>
+            <span class="spacer"></span>
+            <button class="primary small" :disabled="busy" @click="alternar(current)">{{ current.enabled ? 'Desconectar' : 'Conectar' }}</button>
+            <button v-if="current.oauth" class="ghost small" @click="autorizar(current.name)">
+              {{ current.oauth === 'autorizado' ? 'Autorizar de novo' : 'Autorizar' }}
+            </button>
+            <button class="danger small" :disabled="busy" @click="pendingRemove = current.name">Remover</button>
+          </div>
 
-        <template v-if="current.error">
-          <h3 class="error">Erro</h3>
-          <p class="error small break">{{ current.error }}</p>
-        </template>
+          <template v-if="current.url">
+            <h3>URL</h3>
+            <p class="mono small break">{{ current.url }}</p>
+          </template>
+          <template v-else>
+            <h3>Comando</h3>
+            <p class="mono small">{{ current.command }}</p>
+            <h3>Argumentos</h3>
+            <p class="mono small break">{{ current.args?.join(' ') || '-' }}</p>
+          </template>
+
+          <h3>Agentes que usam</h3>
+          <div class="agent-chips">
+            <button
+              v-for="a in sessions.agents"
+              :key="a.name"
+              class="chip-button"
+              :class="{ auto: current.agents?.includes(a.name) }"
+              :disabled="busy"
+              @click="alternarAgente(current, a.name)"
+            >
+              {{ a.name }}
+            </button>
+          </div>
+          <p v-if="!current.agents?.length" class="warn small">Nenhum agente usa este conector. Marque um agente acima e o daemon passa a manter a conexão dele sozinho.</p>
+
+          <h3>Ferramentas</h3>
+          <p class="small">{{ current.connected ? `${current.tools} disponíveis` : 'conecte para listar' }}</p>
+
+          <template v-if="current.error">
+            <h3 class="error">Erro</h3>
+            <p class="error small break">{{ current.error }}</p>
+          </template>
+        </div>
       </div>
-    </div>
-    <p v-else class="muted small">Nenhum conector configurado. Importe do Claude Code ou cole um JSON.</p>
+    </Card>
+    <EmptyState v-else titulo="Nenhum conector configurado" texto="Importe do Claude Code ou cole o JSON de um servidor.">
+      <button class="primary" :disabled="busy" @click="adding = true">Adicionar conector</button>
+    </EmptyState>
 
     <ConfirmDialog
       v-if="pendingRemove"
@@ -231,5 +243,5 @@ async function remover(): Promise<void> {
       @confirm="remover"
       @cancel="pendingRemove = null"
     />
-  </section>
+  </div>
 </template>

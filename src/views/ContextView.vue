@@ -3,8 +3,12 @@ import type { ContextFile } from '@agent-hub/core'
 import { onMounted, ref } from 'vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import WorkspacePicker from '../components/WorkspacePicker.vue'
+import Card from '../components/ui/Card.vue'
+import EmptyState from '../components/ui/EmptyState.vue'
+import PageHeader from '../components/ui/PageHeader.vue'
 import { useConnection } from '../stores/connection'
 import { client } from '../daemon/client'
+import { avisar, mensagemDeErro } from '../ui/feedback'
 
 const workspace = ref(recente())
 const memories = ref<ContextFile[]>([])
@@ -37,7 +41,7 @@ async function carregar(): Promise<void> {
     specs.value = res.specs
     decisions.value = res.decisions
   } catch (err) {
-    error.value = err instanceof Error ? err.message : String(err)
+    error.value = mensagemDeErro(err)
   } finally {
     carregando.value = false
   }
@@ -52,8 +56,9 @@ async function confirmarApagar(): Promise<void> {
     memories.value = res.memories
     specs.value = res.specs
     decisions.value = res.decisions
+    avisar(`${alvo.name} apagado.`)
   } catch (err) {
-    error.value = err instanceof Error ? err.message : String(err)
+    avisar(mensagemDeErro(err), 'erro')
   }
 }
 
@@ -64,55 +69,71 @@ function escolher(dir: string): void {
 </script>
 
 <template>
-  <section class="settings-page">
-    <h1>Contexto do projeto</h1>
-    <p class="muted">
-      O que os agentes gravaram na pasta <code>.agent-hub</code> deste workspace. A memória entra no início de cada
-      conversa quando a regra de ativação casa com o pedido; especificações e decisões ficam no disco e são lidas sob
-      demanda. Memória errada envenena resposta: apague sem dó.
-    </p>
-    <div class="row">
-      <WorkspacePicker :model-value="workspace" @update:model-value="escolher" />
-      <button class="ghost small" :disabled="!workspace || carregando" @click="carregar">Recarregar</button>
-    </div>
-    <p v-if="error" class="error">{{ error }}</p>
+  <div class="ui-page">
+    <PageHeader titulo="Memória do projeto" descricao="O que os agentes anotaram sobre este projeto para lembrar nas próximas conversas. Apague o que estiver errado." />
 
-    <h2>Memória <span class="muted small">{{ memories.length }} itens</span></h2>
-    <p v-if="!memories.length" class="muted small">Nada gravado ainda. Os agentes gravam com a ferramenta memory_write.</p>
-    <div v-for="m in memories" :key="m.file" class="ctx-item">
-      <div class="ctx-topo">
-        <strong>{{ m.name }}</strong>
-        <span v-if="m.data" class="chip">{{ m.data }}</span>
-        <span v-if="!m.activate" class="chip auto">carrega sempre</span>
-        <span class="spacer"></span>
-        <button class="ghost small" @click="apagar = m">Apagar</button>
+    <Card titulo="Projeto" descricao="Escolha a pasta do projeto. As anotações ficam na pasta .agent-hub dentro dela.">
+      <div class="row">
+        <WorkspacePicker :model-value="workspace" @update:model-value="escolher" />
+        <button class="ghost small" :disabled="!workspace || carregando" @click="carregar">Recarregar</button>
       </div>
-      <p class="muted small">{{ m.description || 'sem descrição' }}</p>
-      <p v-if="m.activate" class="muted small">Ativa com: <code>{{ m.activate }}</code></p>
-      <p class="muted small">{{ m.bytes }} bytes<span v-if="m.run">, run {{ m.run.slice(0, 8) }}</span></p>
-    </div>
+    </Card>
 
-    <h2>Especificações <span class="muted small">{{ specs.length }}</span></h2>
-    <p v-if="!specs.length" class="muted small">Nenhuma. Um agente escreve com spec_write antes de executar tarefa grande.</p>
-    <div v-for="s in specs" :key="s.file" class="ctx-item">
-      <div class="ctx-topo">
-        <strong>{{ s.name }}</strong>
-        <span class="spacer"></span>
-        <button class="ghost small" @click="apagar = s">Apagar</button>
-      </div>
-      <p class="muted small">{{ s.file }}, {{ s.bytes }} bytes</p>
-    </div>
+    <EmptyState v-if="!workspace" titulo="Nenhum projeto escolhido" texto="Escolha a pasta de um projeto acima para ver o que os agentes gravaram nele." />
+    <EmptyState v-else-if="carregando" titulo="Carregando" carregando />
+    <EmptyState v-else-if="error" titulo="Não consegui carregar a memória do projeto" :texto="error">
+      <button @click="carregar">Tentar de novo</button>
+    </EmptyState>
 
-    <h2>Decisões <span class="muted small">{{ decisions.length }}</span></h2>
-    <p v-if="!decisions.length" class="muted small">Nenhuma registrada.</p>
-    <div v-for="d in decisions" :key="d.file" class="ctx-item">
-      <div class="ctx-topo">
-        <strong>{{ d.name }}</strong>
-        <span class="spacer"></span>
-        <button class="ghost small" @click="apagar = d">Apagar</button>
-      </div>
-      <p class="muted small">{{ d.file }}, {{ d.bytes }} bytes</p>
-    </div>
+    <template v-else>
+      <Card
+        :titulo="`Memória (${memories.length})`"
+        descricao="Entra no início de cada conversa quando a regra de ativação combina com o pedido. Memória errada atrapalha as respostas: apague sem dó."
+      >
+        <EmptyState v-if="!memories.length" titulo="Nada gravado ainda" texto="Os agentes gravam com a ferramenta memory_write." />
+        <ul v-else class="ui-lista">
+          <li v-for="m in memories" :key="m.file" class="ui-lista-item">
+            <span class="ui-lista-item-texto">
+              <span class="ctx-topo">
+                <strong>{{ m.name }}</strong>
+                <span v-if="m.data" class="chip">{{ m.data }}</span>
+                <span v-if="!m.activate" class="chip auto">carrega sempre</span>
+              </span>
+              <span class="muted">{{ m.description || 'sem descrição' }}</span>
+              <span v-if="m.activate" class="muted">Ativa com: <code>{{ m.activate }}</code></span>
+              <span class="muted">{{ m.bytes }} bytes<span v-if="m.run">, run {{ m.run.slice(0, 8) }}</span></span>
+            </span>
+            <button class="danger small" @click="apagar = m">Apagar</button>
+          </li>
+        </ul>
+      </Card>
+
+      <Card :titulo="`Especificações (${specs.length})`" descricao="Planos escritos pelos agentes antes de tarefas grandes. Ficam no disco e são lidos quando preciso.">
+        <EmptyState v-if="!specs.length" titulo="Nenhuma especificação" texto="Um agente escreve com spec_write antes de executar uma tarefa grande." />
+        <ul v-else class="ui-lista">
+          <li v-for="s in specs" :key="s.file" class="ui-lista-item">
+            <span class="ui-lista-item-texto">
+              <strong>{{ s.name }}</strong>
+              <span class="muted">{{ s.file }}, {{ s.bytes }} bytes</span>
+            </span>
+            <button class="danger small" @click="apagar = s">Apagar</button>
+          </li>
+        </ul>
+      </Card>
+
+      <Card :titulo="`Decisões (${decisions.length})`" descricao="Escolhas registradas pelos agentes durante o trabalho.">
+        <EmptyState v-if="!decisions.length" titulo="Nenhuma decisão registrada" />
+        <ul v-else class="ui-lista">
+          <li v-for="d in decisions" :key="d.file" class="ui-lista-item">
+            <span class="ui-lista-item-texto">
+              <strong>{{ d.name }}</strong>
+              <span class="muted">{{ d.file }}, {{ d.bytes }} bytes</span>
+            </span>
+            <button class="danger small" @click="apagar = d">Apagar</button>
+          </li>
+        </ul>
+      </Card>
+    </template>
 
     <ConfirmDialog
       v-if="apagar"
@@ -122,5 +143,5 @@ function escolher(dir: string): void {
       @confirm="confirmarApagar"
       @cancel="apagar = null"
     />
-  </section>
+  </div>
 </template>

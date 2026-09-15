@@ -5,6 +5,11 @@ import { useRoute, useRouter } from 'vue-router'
 import { disablePush, enablePush, pushState, testPush, type PushState } from '../push'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import InstallHelp from '../components/InstallHelp.vue'
+import Card from '../components/ui/Card.vue'
+import EmptyState from '../components/ui/EmptyState.vue'
+import Field from '../components/ui/Field.vue'
+import PageHeader from '../components/ui/PageHeader.vue'
+import StatusBadge from '../components/ui/StatusBadge.vue'
 import { client } from '../daemon/client'
 import { isDesktop } from '../daemon/native-dialog'
 import { useConnection } from '../stores/connection'
@@ -134,6 +139,7 @@ async function definirSenha(): Promise<void> {
     dispositivos.value = res.devices
     senhaDefinida.value = res.senha_definida
     novaSenha.value = ''
+    avisar('Senha salva.')
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err)
   }
@@ -146,6 +152,7 @@ async function confirmarRevogar(): Promise<void> {
   try {
     const res = await client.request({ type: 'auth.revoke', device_id: alvo.id }, 'auth.devices')
     dispositivos.value = res.devices
+    avisar(`Dispositivo ${alvo.name} revogado.`)
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err)
   }
@@ -235,127 +242,140 @@ function pick(id: string): void {
 </script>
 
 <template>
-  <section class="settings-page" :class="{ centralizada: !comoPainel }">
-    <h1>{{ comoPainel ? 'Conexão' : 'Conectar ao daemon' }}</h1>
-    <p v-if="tentandoAuto" class="muted">Procurando o daemon nesta máquina...</p>
-    <template v-else>
-      <p v-if="connection.status === 'online'" class="muted">
-        Conectado em <strong>{{ connection.device || 'este computador' }}</strong> por <code>{{ connection.url }}</code>.
-        Nesta máquina a conexão é automática: o daemon serve a interface e entrega a credencial sozinho.
-      </p>
-      <InstallHelp v-else-if="semDaemon" :tentando="tentandoAuto" @tentar="conectarSozinho" />
-      <p v-else class="muted">
-        Na própria máquina a conexão é automática: abra <code>http://127.0.0.1:47311</code> e o daemon entrega a
-        credencial sozinho. Os campos abaixo servem para outro dispositivo, celular ou acesso pelo relay.
-      </p>
-      <div class="row">
-        <button v-if="connection.status !== 'online' && !semDaemon" class="primary" type="button" :disabled="busy" @click="conectarSozinho">
-          Tentar de novo nesta máquina
-        </button>
-        <button type="button" @click="manualAberto = !manual">{{ manual ? 'Esconder conexão manual' : semDaemon ? 'Conectar a um daemon de outra máquina' : 'Conectar outro dispositivo' }}</button>
-      </div>
-    </template>
-    <form v-if="manual" @submit.prevent="connect">
-      <label>
-        Modo
-        <select v-model="connection.mode">
-          <option value="direct">direto (local ou VPN)</option>
-          <option value="relay">pelo relay</option>
-        </select>
-      </label>
-      <label>
-        {{ connection.mode === 'relay' ? 'URL do relay' : 'URL do daemon' }}
-        <input v-model="connection.url" type="text" autocomplete="off" spellcheck="false" :placeholder="connection.mode === 'relay' ? 'wss://relay.exemplo.com' : 'ws://127.0.0.1:47311/ws'" />
-      </label>
-      <label v-if="connection.mode === 'relay'">
-        Token de conta
-        <input v-model="connection.accountToken" type="password" autocomplete="off" />
-      </label>
-      <label>
-        Token do daemon
-        <input v-model="connection.token" type="password" autocomplete="off" />
-      </label>
-      <p class="muted small">O link pronto com esses valores sai de <code>make token</code> ou <code>agent-hub-daemon pair</code>.</p>
-      <div v-if="connection.mode === 'relay' && connection.devices.length" class="devices">
-        <p class="muted small">Dispositivos online</p>
-        <button v-for="d in connection.devices" :key="d.id" type="button" :class="{ primary: d.id === connection.deviceId }" @click="pick(d.id)">
-          {{ d.name }}
-        </button>
-      </div>
-      <p v-if="error" class="error">{{ error }}</p>
-      <p v-else-if="connection.status === 'error'" class="error">{{ connection.detail }}</p>
-      <div class="row">
-        <button class="primary" type="submit" :disabled="busy">{{ connection.mode === 'relay' && !connection.deviceId ? 'Listar dispositivos' : 'Conectar' }}</button>
-        <button type="button" @click="connection.disconnect()">Desconectar</button>
-      </div>
-    </form>
-    <div v-if="manual" class="bloco">
-        <h2>Entrar com senha</h2>
-        <p class="muted small">
-          Para um daemon que não é o desta máquina. Você digita a senha uma vez e este dispositivo guarda uma
-          credencial própria, que você revoga quando quiser, sem trocar a senha dos outros.
+  <div class="ui-page" :style="comoPainel ? undefined : { maxWidth: '560px' }">
+    <PageHeader
+      :titulo="comoPainel ? 'Conexão e dispositivos' : 'Conectar ao daemon'"
+      :descricao="comoPainel
+        ? 'Como esta tela se conecta ao Agent Hub, quais outros aparelhos podem entrar e as notificações no celular ou no navegador.'
+        : 'Ligue esta tela ao serviço do Agent Hub que roda os agentes.'"
+    />
+
+    <Card titulo="Estado da conexão">
+      <template v-if="!tentandoAuto" #acoes>
+        <StatusBadge
+          :estado="connection.status === 'online' ? 'ok' : connection.status === 'error' ? 'erro' : 'desligado'"
+          :texto="connection.status === 'online' ? 'Conectado' : connection.status === 'error' ? 'Com erro' : 'Desconectado'"
+        />
+      </template>
+      <EmptyState v-if="tentandoAuto" titulo="Procurando o daemon nesta máquina" carregando />
+      <template v-else>
+        <p v-if="connection.status === 'online'" class="muted">
+          Conectado em <strong>{{ connection.device || 'este computador' }}</strong> por <code>{{ connection.url }}</code>.
+          Nesta máquina a conexão é automática: o daemon serve a interface e entrega a credencial sozinho.
         </p>
-        <form @submit.prevent="entrarComSenha">
-          <label>
-            Nome deste dispositivo
-            <input v-model="nomeDoDispositivo" type="text" autocomplete="off" />
-          </label>
-          <label>
-            Senha
-            <input v-model="senha" type="password" autocomplete="current-password" />
-          </label>
+        <InstallHelp v-else-if="semDaemon" :tentando="tentandoAuto" @tentar="conectarSozinho" />
+        <p v-else class="muted">
+          Na própria máquina a conexão é automática: abra <code>http://127.0.0.1:47311</code> e o daemon entrega a
+          credencial sozinho. Os campos abaixo servem para outro dispositivo, celular ou acesso pelo relay.
+        </p>
+        <div class="row">
+          <button v-if="connection.status !== 'online' && !semDaemon" class="primary" type="button" :disabled="busy" @click="conectarSozinho">
+            Tentar de novo nesta máquina
+          </button>
+          <button type="button" @click="manualAberto = !manual">{{ manual ? 'Esconder conexão manual' : semDaemon ? 'Conectar a um daemon de outra máquina' : 'Conectar outro dispositivo' }}</button>
+        </div>
+      </template>
+    </Card>
+
+    <Card v-if="manual" titulo="Conexão manual" descricao="Para outro dispositivo, celular ou acesso pelo relay.">
+      <form class="ui-form" @submit.prevent="connect">
+        <Field rotulo="Modo">
+          <select v-model="connection.mode">
+            <option value="direct">direto (local ou VPN)</option>
+            <option value="relay">pelo relay</option>
+          </select>
+        </Field>
+        <Field :rotulo="connection.mode === 'relay' ? 'URL do relay' : 'URL do daemon'">
+          <input v-model="connection.url" type="text" autocomplete="off" spellcheck="false" :placeholder="connection.mode === 'relay' ? 'wss://relay.exemplo.com' : 'ws://127.0.0.1:47311/ws'" />
+        </Field>
+        <Field v-if="connection.mode === 'relay'" rotulo="Token de conta">
+          <input v-model="connection.accountToken" type="password" autocomplete="off" />
+        </Field>
+        <Field rotulo="Token do daemon">
+          <input v-model="connection.token" type="password" autocomplete="off" />
+        </Field>
+        <p class="muted small">O link pronto com esses valores sai de <code>make token</code> ou <code>agent-hub-daemon pair</code>.</p>
+        <div v-if="connection.mode === 'relay' && connection.devices.length" class="devices">
+          <p class="muted small">Dispositivos online</p>
+          <button v-for="d in connection.devices" :key="d.id" type="button" :class="{ primary: d.id === connection.deviceId }" @click="pick(d.id)">
+            {{ d.name }}
+          </button>
+        </div>
+        <p v-if="!error && connection.status === 'error'" class="error">{{ connection.detail }}</p>
+        <div class="ui-form-acoes">
+          <button class="primary" type="submit" :disabled="busy">{{ connection.mode === 'relay' && !connection.deviceId ? 'Listar dispositivos' : 'Conectar' }}</button>
+          <button type="button" @click="connection.disconnect()">Desconectar</button>
+        </div>
+      </form>
+    </Card>
+
+    <Card
+      v-if="manual"
+      titulo="Entrar com senha"
+      descricao="Para um daemon que não é o desta máquina. Você digita a senha uma vez e este dispositivo guarda uma credencial própria, que você revoga quando quiser."
+    >
+      <form class="ui-form" @submit.prevent="entrarComSenha">
+        <Field rotulo="Nome deste dispositivo">
+          <input v-model="nomeDoDispositivo" type="text" autocomplete="off" />
+        </Field>
+        <Field rotulo="Senha">
+          <input v-model="senha" type="password" autocomplete="current-password" />
+        </Field>
+        <div class="ui-form-acoes">
           <button class="primary" type="submit" :disabled="busy || !senha">Entrar e guardar credencial</button>
-        </form>
-      </div>
+        </div>
+      </form>
+    </Card>
 
-    <div v-if="connection.status === 'online'" class="bloco">
-      <h2>Daemon</h2>
-      <p class="muted small">
-        Mudou perfil, papel, preço ou conector: recarregar basta, e nada cai. Mudou o código do daemon: precisa
-        reiniciar. Com o serviço do systemd instalado (<code>make servico</code>) ele volta sozinho e sobe junto com a
-        máquina; sem o serviço, o daemon deixa um processo novo no lugar antes de sair.
-      </p>
-      <div class="row">
-        <button type="button" :disabled="reiniciando" @click="recarregar">Recarregar configuração</button>
-        <button type="button" :disabled="reiniciando" @click="reiniciarDaemon">{{ reiniciando ? 'Reiniciando...' : 'Reiniciar daemon' }}</button>
-      </div>
-      <p v-if="daemonAviso" class="muted small">{{ daemonAviso }}</p>
-    </div>
-
-    <div v-if="connection.status === 'online'" class="bloco">
-        <h2>Acesso remoto</h2>
+    <template v-if="connection.status === 'online'">
+      <Card titulo="Serviço do Agent Hub" descricao="Mudou perfil, papel, preço ou conector: recarregar basta, e nada cai. Mudou o código do daemon: precisa reiniciar.">
         <p class="muted small">
-          {{ senhaDefinida ? 'Há uma senha definida neste daemon.' : 'Sem senha definida: nenhum dispositivo de fora consegue entrar.' }}
-          Mínimo de oito caracteres.
+          Com o serviço do systemd instalado (<code>make servico</code>) ele volta sozinho e sobe junto com a máquina; sem o serviço, o daemon deixa
+          um processo novo no lugar antes de sair.
         </p>
-        <form @submit.prevent="definirSenha">
-          <label>
-            {{ senhaDefinida ? 'Trocar a senha' : 'Definir a senha' }}
+        <div class="row">
+          <button type="button" :disabled="reiniciando" @click="recarregar">Recarregar configuração</button>
+          <button type="button" :disabled="reiniciando" @click="reiniciarDaemon">{{ reiniciando ? 'Reiniciando...' : 'Reiniciar daemon' }}</button>
+        </div>
+      </Card>
+
+      <Card
+        titulo="Acesso remoto"
+        :descricao="senhaDefinida ? 'Há uma senha definida neste daemon.' : 'Sem senha definida: nenhum dispositivo de fora consegue entrar.'"
+      >
+        <form class="ui-form" @submit.prevent="definirSenha">
+          <Field :rotulo="senhaDefinida ? 'Trocar a senha' : 'Definir a senha'" ajuda="Mínimo de oito caracteres.">
             <input v-model="novaSenha" type="password" autocomplete="new-password" />
-          </label>
-          <button type="submit" :disabled="novaSenha.length < 8">{{ senhaDefinida ? 'Trocar' : 'Definir' }}</button>
+          </Field>
+          <div class="ui-form-acoes">
+            <button type="submit" :disabled="novaSenha.length < 8">{{ senhaDefinida ? 'Trocar' : 'Definir' }}</button>
+          </div>
         </form>
-        <h2>Dispositivos autorizados</h2>
-        <p v-if="!dispositivos.length" class="muted small">Nenhum. Esta máquina não precisa de credencial.</p>
-        <ul class="list">
-          <li v-for="d in dispositivos" :key="d.id">
-            <strong>{{ d.name }}</strong>
-            <span class="muted small">último acesso {{ quando(d.lastSeen) }}</span>
-            <span class="spacer"></span>
-            <button class="ghost small" @click="revogar = d">Revogar</button>
+      </Card>
+
+      <Card titulo="Dispositivos autorizados" descricao="Aparelhos que entraram com a senha. Revogue os que não usa mais.">
+        <EmptyState v-if="!dispositivos.length" titulo="Nenhum dispositivo autorizado" texto="Esta máquina não precisa de credencial." />
+        <ul v-else class="ui-lista">
+          <li v-for="d in dispositivos" :key="d.id" class="ui-lista-item">
+            <span class="ui-lista-item-texto">
+              <strong>{{ d.name }}</strong>
+              <span class="muted">último acesso {{ quando(d.lastSeen) }}</span>
+            </span>
+            <button class="danger small" @click="revogar = d">Revogar</button>
           </li>
         </ul>
-      </div>
+      </Card>
 
-    <div v-if="connection.status === 'online'" class="push">
-      <p class="muted small">Notificações push para aprovações e fim de run. Funcionam em localhost e em HTTPS.</p>
-      <div class="row">
-        <button type="button" :disabled="push === 'unsupported' || push === 'denied'" @click="togglePush">
-          {{ push === 'on' ? 'Desativar notificações' : push === 'unsupported' ? 'Sem suporte neste navegador' : push === 'denied' ? 'Permissão negada' : 'Ativar notificações' }}
-        </button>
-        <button v-if="push === 'on'" type="button" @click="testPush">Testar</button>
-      </div>
-    </div>
+      <Card titulo="Notificações" descricao="Avisos de aprovações e de fim de execução. Funcionam em localhost e em HTTPS.">
+        <div class="row">
+          <button type="button" :disabled="push === 'unsupported' || push === 'denied'" @click="togglePush">
+            {{ push === 'on' ? 'Desativar notificações' : push === 'unsupported' ? 'Sem suporte neste navegador' : push === 'denied' ? 'Permissão negada' : 'Ativar notificações' }}
+          </button>
+          <button v-if="push === 'on'" type="button" @click="testPush">Testar</button>
+        </div>
+      </Card>
+    </template>
+
     <ConfirmDialog
       v-if="revogar"
       title="Revogar dispositivo"
@@ -364,5 +384,5 @@ function pick(id: string): void {
       @confirm="confirmarRevogar"
       @cancel="revogar = null"
     />
-  </section>
+  </div>
 </template>

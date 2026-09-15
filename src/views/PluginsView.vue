@@ -2,9 +2,13 @@
 import type { AgentSummary, PluginDoClaudeCode, PluginResumo } from '@agent-hub/core'
 import { computed, onMounted, ref } from 'vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import Card from '../components/ui/Card.vue'
+import EmptyState from '../components/ui/EmptyState.vue'
+import PageHeader from '../components/ui/PageHeader.vue'
 import { client } from '../daemon/client'
 import { useConnection } from '../stores/connection'
 import { useSessions } from '../stores/sessions'
+import { avisar } from '../ui/feedback'
 
 const connection = useConnection()
 const sessions = useSessions()
@@ -12,7 +16,7 @@ const plugins = ref<PluginResumo[]>([])
 const doClaudeCode = ref<PluginDoClaudeCode[]>([])
 const agentes = ref<AgentSummary[]>([])
 const erro = ref('')
-const aviso = ref('')
+const carregando = ref(true)
 const ocupado = ref('')
 const origem = ref('')
 const ref_ = ref('')
@@ -36,19 +40,19 @@ async function carregar(): Promise<void> {
     agentes.value = (await client.request({ type: 'agents.list' }, 'agents.list')).agents
   } catch (err) {
     erro.value = mensagem(err)
+  } finally {
+    carregando.value = false
   }
 }
 
 async function executar(rotulo: string, acao: () => Promise<void>): Promise<void> {
-  erro.value = ''
-  aviso.value = ''
   ocupado.value = rotulo
   try {
     await acao()
     await sessions.loadAgents().catch(() => undefined)
     doClaudeCode.value = (await client.request({ type: 'plugins.claude_code' }, 'plugins.claude_code')).plugins
   } catch (err) {
-    erro.value = mensagem(err)
+    avisar(mensagem(err), 'erro')
   } finally {
     ocupado.value = ''
   }
@@ -57,7 +61,7 @@ async function executar(rotulo: string, acao: () => Promise<void>): Promise<void
 function adicionarPasta(pasta: string): Promise<void> {
   return executar(pasta, async () => {
     plugins.value = (await client.request({ type: 'plugins.adicionar', path: pasta }, 'plugins.list', 60000)).plugins
-    aviso.value = 'Plugin adicionado. Confira abaixo se falta alguma chave e crie um papel para usar as skills.'
+    avisar('Plugin adicionado. Confira abaixo se falta alguma chave e crie um papel para usar as skills.')
   })
 }
 
@@ -68,7 +72,7 @@ function adicionarOrigem(): Promise<void> {
     plugins.value = (await client.request(pedido, 'plugins.list', 120000)).plugins
     origem.value = ''
     ref_.value = ''
-    aviso.value = 'Plugin adicionado.'
+    avisar('Plugin adicionado.')
   })
 }
 
@@ -100,7 +104,7 @@ function criarPapel(): Promise<void> {
     const criado = await client.request({ type: 'plugins.papel', plugin, modelos: modelos.value }, 'plugins.papel_criado')
     plugins.value = (await client.request({ type: 'plugins.list' }, 'plugins.list')).plugins
     papelDe.value = null
-    aviso.value = `Papel ${criado.papel} criado. Numa sessão nova, escolha o papel ${criado.papel} no botão de papel abaixo da caixa de texto.`
+    avisar(`Papel ${criado.papel} criado. Numa sessão nova, escolha o papel ${criado.papel} no botão de papel abaixo da caixa de texto.`)
   })
 }
 
@@ -110,17 +114,13 @@ function mensagem(err: unknown): string {
 </script>
 
 <template>
-  <section class="settings-page">
-    <h1>Plugins</h1>
-    <p class="muted">
-      Pacotes no formato do Claude Code com skills, agentes, servidores MCP e hooks. Um plugin roda comandos na sua máquina
-      (servidores MCP, hooks e scripts das skills): adicione só os de origem confiável.
-    </p>
-    <p v-if="erro" class="error">{{ erro }}</p>
-    <p v-if="aviso" class="small">{{ aviso }}</p>
+  <div class="ui-page">
+    <PageHeader
+      titulo="Plugins"
+      descricao="Pacotes que trazem novas skills, agentes e conectores. Eles rodam comandos na sua máquina, então adicione só os de origem confiável."
+    />
 
-    <div v-if="paraImportar.length" class="bloco">
-      <h2>Instalados no Claude Code</h2>
+    <Card v-if="paraImportar.length" titulo="Instalados no Claude Code" descricao="Plugins que você já usa no Claude Code e ainda não estão aqui.">
       <ul class="list">
         <li v-for="p in paraImportar" :key="p.id" class="linha">
           <div class="info">
@@ -134,21 +134,23 @@ function mensagem(err: unknown): string {
           </button>
         </li>
       </ul>
-    </div>
+    </Card>
 
-    <div class="bloco">
-      <h2>Adicionar por pasta ou git</h2>
+    <Card titulo="Adicionar por pasta ou git" descricao="Informe a pasta do plugin nesta máquina ou o endereço de um repositório git.">
       <form class="origem" @submit.prevent="adicionarOrigem">
         <input v-model="origem" type="text" spellcheck="false" autocomplete="off" placeholder="/caminho/do/plugin ou https://github.com/dono/plugin.git" />
         <input v-if="ehGit" v-model="ref_" type="text" spellcheck="false" autocomplete="off" placeholder="branch ou tag (opcional)" class="ref" />
         <button class="primary" type="submit" :disabled="!origem.trim() || Boolean(ocupado)">{{ ocupado === 'origem' ? 'Adicionando...' : 'Adicionar' }}</button>
       </form>
-    </div>
+    </Card>
 
-    <div class="bloco">
-      <h2>Na sua lista</h2>
-      <p v-if="!plugins.length" class="muted small">Nenhum plugin ainda.</p>
-      <ul class="list">
+    <Card titulo="Na sua lista" descricao="Plugins adicionados, as chaves que eles pedem e os papéis criados com as skills deles.">
+      <EmptyState v-if="carregando" titulo="Carregando" carregando />
+      <EmptyState v-else-if="erro" titulo="Não consegui carregar os plugins" :texto="erro">
+        <button @click="carregar">Tentar de novo</button>
+      </EmptyState>
+      <EmptyState v-else-if="!plugins.length" titulo="Nenhum plugin ainda" texto="Adicione um plugin pela pasta ou por um repositório git no formulário acima." />
+      <ul v-else class="list">
         <li v-for="p in plugins" :key="p.chave" class="plugin">
           <div class="linha">
             <div class="info">
@@ -161,7 +163,7 @@ function mensagem(err: unknown): string {
               <span v-if="p.descricao" class="muted small descricao">{{ p.descricao }}</span>
             </div>
             <button class="ghost small" type="button" :disabled="Boolean(ocupado)" @click="alternar(p)">{{ p.enabled ? 'Desligar' : 'Ligar' }}</button>
-            <button class="ghost small" type="button" :disabled="Boolean(ocupado)" @click="remover = p">Remover</button>
+            <button class="danger small" type="button" :disabled="Boolean(ocupado)" @click="remover = p">Remover</button>
           </div>
 
           <p v-for="e in p.erros" :key="e" class="error small">{{ e }}</p>
@@ -191,7 +193,7 @@ function mensagem(err: unknown): string {
           </div>
         </li>
       </ul>
-    </div>
+    </Card>
 
     <ConfirmDialog
       v-if="remover"
@@ -201,7 +203,7 @@ function mensagem(err: unknown): string {
       @confirm="confirmarRemover"
       @cancel="remover = null"
     />
-  </section>
+  </div>
 </template>
 
 <style scoped>

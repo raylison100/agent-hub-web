@@ -1,5 +1,9 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue'
+import Card from '../components/ui/Card.vue'
+import EmptyState from '../components/ui/EmptyState.vue'
+import PageHeader from '../components/ui/PageHeader.vue'
+import StatusBadge from '../components/ui/StatusBadge.vue'
 import { useAtualizacoes } from '../stores/atualizacoes'
 import { confirmar } from '../ui/feedback'
 
@@ -44,16 +48,14 @@ function data(iso: string | null | undefined): string {
 </script>
 
 <template>
-  <section class="settings-page">
-    <h1>Atualizações</h1>
-    <p class="muted">
-      O Agent Hub tem duas partes com a mesma versão: o app que você abre e o daemon que roda os agentes. As duas procuram a
-      última versão publicada no GitHub.
-    </p>
-    <button type="button" :disabled="at.verificando" @click="at.verificar(true)">{{ at.verificando ? 'Procurando...' : 'Procurar agora' }}</button>
+  <div class="ui-page">
+    <PageHeader titulo="Atualizações" descricao="Veja se há uma versão nova do Agent Hub e instale. O app e o serviço que roda os agentes usam a mesma versão.">
+      <template #acoes>
+        <button type="button" :disabled="at.verificando" @click="at.verificar(true)">{{ at.verificando ? 'Procurando...' : 'Procurar agora' }}</button>
+      </template>
+    </PageHeader>
 
-    <div v-if="at.desktop" class="bloco">
-      <h2>App de desktop</h2>
+    <Card v-if="at.desktop" titulo="App de desktop" descricao="O programa que você abre neste computador.">
       <p class="small">Versão instalada: <code>{{ at.appAtual || '...' }}</code></p>
       <template v-if="at.appNoWindows">
         <div v-if="at.appNova" class="nova">
@@ -65,30 +67,36 @@ function data(iso: string | null | undefined): string {
             {{ at.appBaixando ? `Baixando ${at.appProgresso}%` : 'Instalar e reabrir' }}
           </button>
         </div>
-        <p v-else-if="!at.appErro && !at.verificando" class="muted small">Esta é a versão mais recente.</p>
+        <StatusBadge v-else-if="!at.appErro && !at.verificando" estado="ok" texto="Esta é a versão mais recente" />
       </template>
       <p v-else class="muted small">
         No Linux o app atualiza pelo pacote: baixe o <code>.deb</code> ou o <code>.rpm</code> da
         <a :href="releases" target="_blank" rel="noopener">última Release</a>.
       </p>
       <p v-if="at.appErro" class="error">{{ at.appErro }}</p>
-    </div>
+    </Card>
 
-    <div class="bloco">
-      <h2>Daemon</h2>
+    <Card titulo="Daemon" descricao="O serviço que roda os agentes nesta máquina.">
+      <template v-if="at.daemon" #acoes>
+        <StatusBadge v-if="at.daemon.atualizando" estado="andamento" texto="Atualizando" />
+        <StatusBadge v-else-if="at.daemon.disponivel" estado="atencao" :texto="`Nova versão ${at.daemon.ultima}`" />
+        <StatusBadge v-else estado="ok" texto="Em dia" />
+      </template>
       <template v-if="at.daemon">
         <p class="small">
           Versão em execução: <code>{{ at.daemon.atual }}</code>
           <span v-if="at.daemon.ultima" class="muted">, última publicada <code>{{ at.daemon.ultima }}</code>{{ data(at.daemon.publicada_em) ? ` em ${data(at.daemon.publicada_em)}` : '' }}</span>
         </p>
         <p class="small">{{ at.daemon.detalhe }}</p>
-        <button v-if="at.daemon.pode_atualizar" class="primary" type="button" @click="atualizarDaemon">Atualizar o daemon</button>
-        <a v-if="at.daemon.disponivel && at.daemon.endereco_da_versao" class="small" :href="at.daemon.endereco_da_versao" target="_blank" rel="noopener">O que mudou nesta versão</a>
+        <div class="row">
+          <button v-if="at.daemon.pode_atualizar" class="primary" type="button" @click="atualizarDaemon">Atualizar o daemon</button>
+          <a v-if="at.daemon.disponivel && at.daemon.endereco_da_versao" class="small" :href="at.daemon.endereco_da_versao" target="_blank" rel="noopener">O que mudou nesta versão</a>
+        </div>
       </template>
-      <p v-else-if="!at.daemonErro" class="muted small">Consultando...</p>
+      <EmptyState v-else-if="!at.daemonErro" titulo="Consultando" carregando />
       <p v-if="at.daemonErro" class="error">{{ at.daemonErro }}</p>
-    </div>
-  </section>
+    </Card>
+  </div>
 </template>
 
 <style scoped>
@@ -96,10 +104,5 @@ function data(iso: string | null | undefined): string {
   display: grid;
   gap: 8px;
   justify-items: start;
-}
-
-.bloco a {
-  display: inline-block;
-  margin-left: 12px;
 }
 </style>

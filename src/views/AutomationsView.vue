@@ -152,7 +152,7 @@ onUnmounted(() => off?.())
   <section class="settings-page">
     <div class="page-head">
       <div>
-        <h1>Automacoes</h1>
+        <h1>Automações</h1>
         <p class="muted small">Agendamentos por cron, ganchos em volta das ferramentas e o que rodou sozinho.</p>
       </div>
       <button :class="{ primary: paused }" @click="toggle">{{ paused ? 'Retomar tudo' : 'Pausar tudo' }}</button>
@@ -164,7 +164,7 @@ onUnmounted(() => off?.())
       <li v-for="s in schedules" :key="s.id">
         <div class="list-title">{{ s.id }} <span class="tag">{{ s.source }}</span> <span v-if="s.running" class="tag">rodando</span></div>
         <div class="muted small">{{ s.cron ?? `em ${when(s.at ?? null)}` }} ({{ s.timezone }}), {{ s.agent }}, {{ s.mode }}</div>
-        <div class="muted small">proximo {{ when(s.nextRunAt) }}, ultimo {{ when(s.lastRunAt) }}, hoje {{ s.todayUsd.toFixed(4) }} de {{ s.budget.day_usd }} USD</div>
+        <div class="muted small">próximo {{ when(s.nextRunAt) }}, último {{ when(s.lastRunAt) }}, hoje {{ s.todayUsd.toFixed(4) }} de {{ s.budget.day_usd }} USD</div>
         <div class="row">
           <button @click="runNow(s.id)">Rodar agora</button>
           <button @click="remove(s.id)">Apagar</button>
@@ -188,8 +188,8 @@ onUnmounted(() => off?.())
       <label>
         Modo
         <select v-model="form.mode">
-          <option value="draft">rascunho (sem escrita nem execucao)</option>
-          <option value="normal">normal (politica do perfil)</option>
+          <option value="draft">rascunho (sem escrita nem execução)</option>
+          <option value="normal">normal (política do perfil)</option>
         </select>
       </label>
       <div class="row">
@@ -206,7 +206,7 @@ onUnmounted(() => off?.())
         <li v-for="p in parados" :key="p.runId">
           <span class="tag">{{ p.status }}</span>
           <strong>{{ p.name }}</strong>
-          <span class="muted small">proxima etapa {{ p.nextStep ?? '-' }}, ja gastou {{ p.costUsd.toFixed(4) }} USD</span>
+          <span class="muted small">próxima etapa {{ p.nextStep ?? '-' }}, já gastou {{ p.costUsd.toFixed(4) }} USD</span>
           <button class="primary small" @click="continuar(p.runId)">Continuar</button>
         </li>
       </ul>
@@ -215,7 +215,7 @@ onUnmounted(() => off?.())
     <h2>Ganchos prontos</h2>
     <p class="muted small">
       Comandos que o harness dispara sozinho em volta das ferramentas. Ligar escreve em agents/hooks.json;
-      desligar tira de la. {{ extras }} gancho(s) seu(s) fora deste catalogo continuam como estao.
+      desligar tira de lá. {{ extras }} gancho(s) seu(s) fora deste catálogo continuam como estão.
     </p>
     <ul class="list">
       <li v-for="g in ganchos" :key="g.id">
@@ -230,7 +230,7 @@ onUnmounted(() => off?.())
       </li>
     </ul>
 
-    <h2>Ultimas execucoes</h2>
+    <h2>Últimas execuções</h2>
     <ul class="list">
       <li v-for="r in runs" :key="r.id">
         <RouterLink :to="{ name: 'chat', params: { id: r.sessionId } }">

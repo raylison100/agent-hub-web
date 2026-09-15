@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Icone from './ui/Icone.vue'
 import type { SessionSummary } from '@agent-hub/core'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -38,15 +39,15 @@ onMounted(async () => {
   }
 })
 
-const nomeUsuario = computed(() => (usuario.value ? usuario.value.charAt(0).toUpperCase() + usuario.value.slice(1) : 'Voce'))
+const nomeUsuario = computed(() => (usuario.value ? usuario.value.charAt(0).toUpperCase() + usuario.value.slice(1) : 'Você'))
 
 const itensUsuario = computed<MenuItem[]>(() => [
-  { id: 'settings', label: 'Configuracoes' },
-  { id: 'appearance', label: 'Aparencia' },
+  { id: 'settings', label: 'Configurações' },
+  { id: 'appearance', label: 'Aparência' },
   { id: 'connectors', label: 'Conectores' },
   { id: 'secrets', label: 'Chaves' },
   { id: 'sep', label: '', separator: true },
-  { id: 'connection', label: `Conexao: ${connection.status === 'online' ? connection.device : connection.status}` },
+  { id: 'connection', label: `Conexão: ${connection.status === 'online' ? connection.device : connection.status}` },
 ])
 
 function abrirMenuUsuario(e: MouseEvent): void {
@@ -108,7 +109,7 @@ const menuItems = computed<MenuItem[]>(() => {
     { id: 'pin', label: s?.pinned ? 'Desafixar' : 'Fixar', key: 'P' },
     { id: 'rename', label: 'Mudar o nome', key: 'R' },
     { id: 'fork', label: 'Bifurcar', key: 'F' },
-    { id: 'copy', label: 'Copiar id da sessao', key: 'C' },
+    { id: 'copy', label: 'Copiar id da sessão', key: 'C' },
     { id: 'sep2', label: '', separator: true },
     { id: 'select', label: 'Selecionar', key: 'S' },
     { id: 'group', label: 'Mover para o grupo...' },
@@ -297,12 +298,12 @@ async function commitRename(): Promise<void> {
   <aside class="sidebar">
     <div class="sidebar-top">
       <RouterLink to="/" class="brand">Agent Hub</RouterLink>
-      <button class="icon" title="Recolher" @click="$emit('collapse')">|<</button>
+      <button class="icon" title="Recolher barra lateral" aria-label="Recolher barra lateral" @click="$emit('collapse')"><Icone nome="recolher" /></button>
     </div>
-    <RouterLink to="/" class="new-session">+ Novo</RouterLink>
+    <RouterLink to="/" class="new-session"><Icone nome="mais" :tamanho="16" /> Nova conversa</RouterLink>
     <div class="search-row">
-      <input v-model="query" class="search" type="search" placeholder="Buscar sessoes" />
-      <button class="icon" title="Mais acoes da lista" @click="abrirMenuLista">...</button>
+      <input v-model="query" class="search" type="search" placeholder="Buscar sessões" />
+      <button class="icon" title="Mais ações da lista" aria-label="Mais ações da lista" @click="abrirMenuLista"><Icone nome="opcoes" /></button>
     </div>
     <div v-if="selecionadas.size > 0" class="bulk-bar">
       <div class="bulk-linha">
@@ -344,10 +345,10 @@ async function commitRename(): Promise<void> {
             @blur="commitRename"
           />
           <RouterLink v-else :to="{ name: 'chat', params: { id: s.id } }" class="session-link" :class="{ active: isActive(s.id), selecionada: selecionadas.has(s.id) }" :title="`${s.agent} em ${s.workspace}`" @click="onClickSessao($event, s)" @contextmenu="openMenu($event, s)" @mouseup.right="openMenu($event, s)">
-            <span v-if="selecionadas.has(s.id)" class="check">v</span>
+            <span v-if="selecionadas.has(s.id)" class="check"><Icone nome="check" :tamanho="14" /></span>
             <span v-else class="dot" :data-mark="mark(s)"></span>
             <span class="session-title">{{ s.title }}</span>
-            <span class="session-cost">{{ s.costUsd.toFixed(2) }}</span>
+            <span class="session-cost" :title="`Gasto nesta conversa: US$ ${s.costUsd.toFixed(2)}`">US$ {{ s.costUsd.toFixed(2) }}</span>
           </RouterLink>
         </template>
       </div>
@@ -374,18 +375,18 @@ async function commitRename(): Promise<void> {
             @contextmenu="openMenu($event, s)"
             @mouseup.right="openMenu($event, s)"
           >
-            <span v-if="selecionadas.has(s.id)" class="check">v</span>
+            <span v-if="selecionadas.has(s.id)" class="check"><Icone nome="check" :tamanho="14" /></span>
             <span v-else class="dot" :data-mark="mark(s)"></span>
             <span class="session-title">{{ s.title }}</span>
-            <span class="session-cost">{{ s.costUsd.toFixed(2) }}</span>
+            <span class="session-cost" :title="`Gasto nesta conversa: US$ ${s.costUsd.toFixed(2)}`">US$ {{ s.costUsd.toFixed(2) }}</span>
           </RouterLink>
         </template>
       </div>
-      <p v-if="!visible.length" class="muted small pad">Nenhuma sessao.</p>
+      <p v-if="!visible.length" class="muted small pad">{{ query ? 'Nenhuma conversa encontrada.' : 'Nenhuma conversa ainda. Comece uma em Nova conversa.' }}</p>
     </div>
     <div class="user-area">
       <RouterLink v-if="atualizacoes.temNovidade" to="/settings/atualizacoes" class="aviso-versao">
-        Versao nova disponivel{{ atualizacoes.appNova ? `: ${atualizacoes.appNova.versao}` : atualizacoes.daemon?.ultima ? `: ${atualizacoes.daemon.ultima}` : '' }}
+        Versão nova disponível{{ atualizacoes.appNova ? `: ${atualizacoes.appNova.versao}` : atualizacoes.daemon?.ultima ? `: ${atualizacoes.daemon.ultima}` : '' }}
       </RouterLink>
       <button class="user-bar" @click="abrirMenuUsuario">
         <span class="avatar">{{ nomeUsuario.charAt(0) }}</span>
@@ -399,7 +400,7 @@ async function commitRename(): Promise<void> {
     <ConfirmDialog
       v-if="pendingBulk === 'apagar'"
       :title="`Apagar ${selecionadas.size} conversas?`"
-      detail="O historico delas some. O custo ja registrado continua no ledger."
+      detail="O histórico delas some. O custo já registrado continua no ledger."
       confirm-label="Apagar"
       @confirm="apagarSelecionadas(); pendingBulk = null"
       @cancel="pendingBulk = null"
@@ -407,15 +408,15 @@ async function commitRename(): Promise<void> {
     <ConfirmDialog
       v-if="pendingBulk === 'apagar-tudo'"
       :title="`Apagar todas as ${sessions.sessions.length} conversas?`"
-      detail="Some tudo, inclusive as arquivadas. O custo ja registrado continua no ledger."
+      detail="Some tudo, inclusive as arquivadas. O custo já registrado continua no ledger."
       confirm-label="Apagar tudo"
       @confirm="apagarTodas(); pendingBulk = null"
       @cancel="pendingBulk = null"
     />
     <ConfirmDialog
       v-if="pendingDelete"
-      :title="`Apagar a sessao ${pendingDelete.title.slice(0, 60)}?`"
-      detail="O historico e removido. O custo ja registrado continua no ledger."
+      :title="`Apagar a sessão ${pendingDelete.title.slice(0, 60)}?`"
+      detail="O histórico é removido. O custo já registrado continua no ledger."
       confirm-label="Apagar"
       @confirm="confirmDelete"
       @cancel="pendingDelete = null"

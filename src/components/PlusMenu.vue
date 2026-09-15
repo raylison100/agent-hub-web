@@ -86,7 +86,7 @@ async function adicionarPasta(): Promise<void> {
     return
   }
   try {
-    const escolhida = await pickFolder('Adicionar pasta a sessao')
+    const escolhida = await pickFolder('Adicionar pasta à sessão')
     if (escolhida === null) return
     const alvo = toDaemonPath(escolhida)
     const res = await client.request({ type: 'fs.tree', workspace: alvo, depth: 3 }, 'fs.tree', 30000)

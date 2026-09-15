@@ -13,10 +13,10 @@ const passos = computed(() => [
   ...(noWindows
     ? [{ titulo: 'Sem WSL ainda: no PowerShell como administrador, e reinicie o computador depois', comando: 'wsl --install -d Ubuntu' }]
     : []),
-  { titulo: `${noWindows ? 'No Ubuntu do WSL, ' : ''}ferramentas de compilacao`, comando: 'sudo apt install -y build-essential python3' },
+  { titulo: `${noWindows ? 'No Ubuntu do WSL, ' : ''}ferramentas de compilação`, comando: 'sudo apt install -y build-essential python3' },
   { titulo: 'Node 22 ou superior, por exemplo pelo nvm (github.com/nvm-sh/nvm)', comando: 'nvm install 24' },
   { titulo: 'O Agent Hub', comando: `npm install -g ${pacote}` },
-  { titulo: 'Configuracao, agentes iniciais e servico que sobe com a maquina', comando: 'agent-hub instalar' },
+  { titulo: 'Configuração, agentes iniciais e serviço que sobe com a máquina', comando: 'agent-hub instalar' },
 ])
 
 /** Copia um comando para a area de transferencia e marca qual foi copiado. */
@@ -31,14 +31,14 @@ async function copiar(comando: string): Promise<void> {
 
 <template>
   <div class="bloco instalar">
-    <h2>O daemon nao esta rodando nesta maquina</h2>
+    <h2>O daemon não está rodando nesta máquina</h2>
     <p class="muted small">
       <template v-if="noWindows">
-        O app do Windows e so a janela: quem guarda as conversas, chama os modelos e roda as ferramentas e o daemon, que
+        O app do Windows é só a janela: quem guarda as conversas, chama os modelos e roda as ferramentas é o daemon, que
         vive no WSL. Instale uma vez e ele passa a subir sozinho.
       </template>
       <template v-else>
-        Quem guarda as conversas, chama os modelos e roda as ferramentas e o daemon. Instale uma vez e ele passa a subir
+        Quem guarda as conversas, chama os modelos e roda as ferramentas é o daemon. Instale uma vez e ele passa a subir
         sozinho.
       </template>
     </p>
@@ -52,15 +52,15 @@ async function copiar(comando: string): Promise<void> {
       </li>
     </ol>
     <p v-if="noWindows" class="muted small">
-      Se o <code>agent-hub instalar</code> disser que o systemd esta indisponivel, habilite em <code>/etc/wsl.conf</code>
+      Se o <code>agent-hub instalar</code> disser que o systemd está indisponível, habilite em <code>/etc/wsl.conf</code>
       com <code>[boot]</code> e <code>systemd=true</code>, rode <code>wsl --shutdown</code> no PowerShell e instale de novo.
     </p>
     <p class="muted small">Passo a passo completo: <code>{{ wiki }}</code></p>
     <div class="row">
       <button class="primary" type="button" :disabled="props.tentando" @click="$emit('tentar')">
-        {{ props.tentando ? 'Procurando...' : 'Ja instalei, conectar' }}
+        {{ props.tentando ? 'Procurando...' : 'Já instalei, conectar' }}
       </button>
-      <span class="muted small">Esta tela tambem procura sozinha a cada poucos segundos.</span>
+      <span class="muted small">Esta tela também procura sozinha a cada poucos segundos.</span>
     </div>
   </div>
 </template>

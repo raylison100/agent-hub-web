@@ -119,7 +119,7 @@ function detalhesDe(p: Pessoa): { rotulo: string; valor: string }[] {
   const itens: { rotulo: string; valor: string }[] = []
   if (p.apelido && nomeLegivel(p)) itens.push({ rotulo: 'Nome no canal', valor: nomeLegivel(p)! })
   if (!nomeLegivel(p) && p.nome) itens.push({ rotulo: 'Nome no canal', valor: `${p.nome} (sem letras)` })
-  if (p.usuario) itens.push({ rotulo: 'Usuario', valor: `@${p.usuario}` })
+  if (p.usuario) itens.push({ rotulo: 'Usuário', valor: `@${p.usuario}` })
   itens.push({ rotulo: atual.value?.rotuloDoId ?? 'ID', valor: idDe(p) })
   return itens
 }
@@ -178,8 +178,8 @@ onUnmounted(() => desligar?.())
   <section class="settings-page canais">
     <h1>Canais</h1>
     <p class="muted small">
-      Bots para conversar com os agentes fora da interface, receber as respostas das automacoes e aprovar ferramentas pelo celular. Crie quantos
-      quiser, cada um com o seu agente, papel e pasta padrao. Credenciais ficam cifradas no daemon.
+      Bots para conversar com os agentes fora da interface, receber as respostas das automações e aprovar ferramentas pelo celular. Crie quantos
+      quiser, cada um com o seu agente, papel e pasta padrão. Credenciais ficam cifradas no daemon.
     </p>
 
     <div class="canais-lista">
@@ -202,7 +202,7 @@ onUnmounted(() => desligar?.())
           <template v-if="c.pedidos.length"> · {{ c.pedidos.length }} {{ c.pedidos.length === 1 ? 'pedido' : 'pedidos' }} de acesso</template>
           <template v-if="c.padrao.papel"> · papel {{ c.padrao.papel }}</template>
         </span>
-        <span class="canal-cartao-linha muted">id nas automacoes: <code>{{ c.id }}</code></span>
+        <span class="canal-cartao-linha muted">id nas automações: <code>{{ c.id }}</code></span>
       </button>
       <button type="button" :class="['canal-cartao', 'canal-novo', { ativo: novo }]" @click="novo = { tipo: 'telegram', nome: '' }">
         <strong>+ Novo canal</strong>
@@ -225,7 +225,7 @@ onUnmounted(() => desligar?.())
         <input
           :value="novo?.nome ?? ''"
           type="text"
-          placeholder="ex.: Social midia, Dev, Alertas"
+          placeholder="ex.: Social mídia, Dev, Alertas"
           @input="novo = { tipo: novo?.tipo ?? 'telegram', nome: ($event.target as HTMLInputElement).value }"
         />
       </label>
@@ -282,7 +282,7 @@ onUnmounted(() => desligar?.())
           <span class="muted small">{{ atual.rodando ? 'recebendo mensagens' : 'parado' }}</span>
         </div>
         <p v-if="atual.rodando && atual.permitidos.length === 0" class="muted small">
-          Proximo passo: <a v-if="atual.link" :href="atual.link" target="_blank" rel="noopener">abra o bot</a><span v-else>abra o bot</span>, mande qualquer
+          Próximo passo: <a v-if="atual.link" :href="atual.link" target="_blank" rel="noopener">abra o bot</a><span v-else>abra o bot</span>, mande qualquer
           mensagem e clique em Permitir abaixo.
         </p>
         <p v-if="atual.erro" class="error small">{{ atual.erro }}</p>
@@ -290,8 +290,8 @@ onUnmounted(() => desligar?.())
 
       <div v-if="atual.configurado" class="canal-bloco">
         <h2>Pediram acesso</h2>
-        <p class="muted small">Quem manda mensagem para o bot e ainda nao tem acesso aparece aqui, sozinho, sem recarregar a tela.</p>
-        <p v-if="atual.pedidos.length === 0" class="muted small">{{ atual.rodando ? 'Ninguem ainda.' : 'Ligue o canal primeiro.' }}</p>
+        <p class="muted small">Quem manda mensagem para o bot e ainda não tem acesso aparece aqui, sozinho, sem recarregar a tela.</p>
+        <p v-if="atual.pedidos.length === 0" class="muted small">{{ atual.rodando ? 'Ninguém ainda.' : 'Ligue o canal primeiro.' }}</p>
         <ul class="pessoas">
           <li v-for="p in atual.pedidos" :key="p.id" class="pessoa pendente">
             <img v-if="fotoDe(p)" class="pessoa-avatar" :src="fotoDe(p)" alt="" />
@@ -314,7 +314,7 @@ onUnmounted(() => desligar?.())
       <div v-if="atual.configurado" class="canal-bloco">
         <h2>Pessoas permitidas</h2>
         <p class="muted small">
-          Para chamar mais gente, mande o link do bot{{ atual.link ? `: ${atual.link}` : '' }}. A primeira pessoa da lista recebe os avisos das automacoes.
+          Para chamar mais gente, mande o link do bot{{ atual.link ? `: ${atual.link}` : '' }}. A primeira pessoa da lista recebe os avisos das automações.
         </p>
         <p v-if="atual.permitidos.length === 0" class="muted small">Nenhuma ainda.</p>
         <ul class="pessoas">
@@ -332,7 +332,7 @@ onUnmounted(() => desligar?.())
               <span class="pessoa-titulo">
                 {{ tituloDe(p) }}
                 <span v-if="i === 0" class="badge">recebe avisos</span>
-                <span v-if="!p.conversa" class="badge muted-badge">ainda nao falou com o bot</span>
+                <span v-if="!p.conversa" class="badge muted-badge">ainda não falou com o bot</span>
               </span>
               <span class="pessoa-detalhes">
                 <span v-for="d in detalhesDe(p)" :key="d.rotulo" class="pessoa-detalhe"><span class="muted">{{ d.rotulo }}</span> {{ d.valor }}</span>
@@ -347,16 +347,16 @@ onUnmounted(() => desligar?.())
       </div>
 
       <form class="canal-bloco secret-form" @submit.prevent="salvarPadrao()">
-        <h2>Nome e padroes das conversas</h2>
+        <h2>Nome e padrões das conversas</h2>
         <p class="muted small">
-          Conversas novas neste canal usam esses valores. Vazio usa o roteamento normal. Para uma automacao avisar aqui, use
+          Conversas novas neste canal usam esses valores. Vazio usa o roteamento normal. Para uma automação avisar aqui, use
           <code>"notify": ["{{ atual.id }}"]</code> no agendamento.
         </p>
         <label>Nome <input v-model="padrao.nome" type="text" /></label>
         <label>Agente <input v-model="padrao.agente" type="text" placeholder="ex.: gemini" spellcheck="false" /></label>
         <label>Papel <input v-model="padrao.papel" type="text" placeholder="ex.: social-media" spellcheck="false" /></label>
         <label>Pasta <input v-model="padrao.workspace" type="text" placeholder="caminho de um workspace permitido" spellcheck="false" /></label>
-        <div class="row"><button type="submit" :disabled="ocupado">Salvar padroes</button></div>
+        <div class="row"><button type="submit" :disabled="ocupado">Salvar padrões</button></div>
       </form>
 
       <div class="canal-bloco">

@@ -78,20 +78,20 @@ onMounted(async () => {
       <select v-model="group" @change="load">
         <option value="agent">por agente</option>
         <option value="model">por modelo</option>
-        <option value="session">por sessao</option>
+        <option value="session">por sessão</option>
         <option value="day">por dia</option>
       </select>
       <select v-model="period" @change="load">
         <option value="today">hoje</option>
         <option value="week">7 dias</option>
-        <option value="month">este mes</option>
+        <option value="month">este mês</option>
         <option value="all">tudo</option>
       </select>
       <button @click="load">Atualizar</button>
       <button @click="exportCsv">Exportar CSV</button>
     </div>
     <p v-if="error" class="error">{{ error }}</p>
-    <p v-else-if="!rows.length" class="muted">Sem registros no periodo.</p>
+    <p v-else-if="!rows.length" class="muted">Sem registros no período.</p>
     <div v-else class="table-wrap">
       <table>
         <thead>
@@ -102,7 +102,7 @@ onMounted(async () => {
             <th class="num">entrada</th>
             <th class="num">cache</th>
             <th class="num">taxa cache</th>
-            <th class="num">saida</th>
+            <th class="num">saída</th>
           </tr>
         </thead>
         <tbody>

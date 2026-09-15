@@ -148,7 +148,7 @@ async function remover(): Promise<void> {
     </div>
 
     <div v-if="adding" class="add-box">
-      <p class="muted small">Cole o JSON que a documentacao do servidor mostra. Aceita mcpServers, servers ou um servidor solto.</p>
+      <p class="muted small">Cole o JSON que a documentação do servidor mostra. Aceita mcpServers, servers ou um servidor solto.</p>
       <textarea v-model="paste" rows="8" class="mono" :placeholder="exemplo" spellcheck="false"></textarea>
       <div class="row">
         <button class="primary" :disabled="busy || !paste.trim()" @click="adicionar">Salvar conector</button>
@@ -210,10 +210,10 @@ async function remover(): Promise<void> {
             {{ a.name }}
           </button>
         </div>
-        <p v-if="!current.agents?.length" class="warn small">Nenhum agente usa este conector. Marque um agente acima e o daemon passa a manter a conexao dele sozinho.</p>
+        <p v-if="!current.agents?.length" class="warn small">Nenhum agente usa este conector. Marque um agente acima e o daemon passa a manter a conexão dele sozinho.</p>
 
         <h3>Ferramentas</h3>
-        <p class="small">{{ current.connected ? `${current.tools} disponiveis` : 'conecte para listar' }}</p>
+        <p class="small">{{ current.connected ? `${current.tools} disponíveis` : 'conecte para listar' }}</p>
 
         <template v-if="current.error">
           <h3 class="error">Erro</h3>

@@ -12,12 +12,12 @@ const temas: { valor: Tema; nome: string; detalhe: string }[] = [
 
 const tamanhos: { valor: Tamanho; nome: string }[] = [
   { valor: 'pequena', nome: 'Pequena' },
-  { valor: 'media', nome: 'Media' },
+  { valor: 'media', nome: 'Média' },
   { valor: 'grande', nome: 'Grande' },
 ]
 
 const densidades: { valor: Densidade; nome: string; detalhe: string }[] = [
-  { valor: 'confortavel', nome: 'Confortavel', detalhe: 'Mais respiro entre os itens' },
+  { valor: 'confortavel', nome: 'Confortável', detalhe: 'Mais respiro entre os itens' },
   { valor: 'compacta', nome: 'Compacta', detalhe: 'Cabe mais coisa na tela' },
 ]
 
@@ -35,8 +35,8 @@ watch(
   <section class="settings-page">
     <div class="page-head">
       <div>
-        <h1>Aparencia</h1>
-        <p class="muted small">As escolhas valem para este dispositivo e sao aplicadas na hora.</p>
+        <h1>Aparência</h1>
+        <p class="muted small">As escolhas valem para este dispositivo e são aplicadas na hora.</p>
       </div>
     </div>
 
@@ -93,12 +93,12 @@ watch(
       </button>
     </div>
 
-    <h2>Previa</h2>
+    <h2>Prévia</h2>
     <div class="previa">
       <div class="bubble user"><pre>Como fica uma mensagem minha</pre></div>
       <div class="assistant-text">
         <div class="markdown">
-          <p>Resposta com <strong>negrito</strong>, <code>codigo curto</code> e link.</p>
+          <p>Resposta com <strong>negrito</strong>, <code>código curto</code> e link.</p>
           <ul>
             <li>Item de lista</li>
             <li>Outro item</li>

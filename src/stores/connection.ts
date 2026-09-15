@@ -148,7 +148,7 @@ export const useConnection = defineStore('connection', () => {
         if (s === 'error') {
           clearTimeout(timer)
           stop()
-          reject(new Error(detail.value || 'falha na conexao'))
+          reject(new Error(detail.value || 'falha na conexão'))
         }
       })
     })

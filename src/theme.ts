@@ -21,7 +21,7 @@ export const acentos: { nome: string; valor: string }[] = [
 export const fontes: { nome: string; valor: string }[] = [
   { nome: 'Sistema', valor: 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif' },
   { nome: 'Serifada', valor: 'Georgia, Cambria, "Times New Roman", serif' },
-  { nome: 'Monoespacada', valor: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace' },
+  { nome: 'Monoespaçada', valor: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace' },
 ]
 
 export const padrao: Aparencia = {

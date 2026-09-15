@@ -122,7 +122,7 @@ function levelOf(count: number): number {
 const bookComparison = computed(() => {
   const total = stats.value?.total_tokens ?? 0
   if (total < bookTokens * 2) return null
-  return `Voce usou ~${Math.round(total / bookTokens)}x mais tokens do que Harry Potter e a Pedra Filosofal.`
+  return `Você usou ~${Math.round(total / bookTokens)}x mais tokens do que Harry Potter e a Pedra Filosofal.`
 })
 
 function fmt(n: number): string {
@@ -137,7 +137,7 @@ function shortModel(model: string | null): string {
 }
 
 function money(v: number): string {
-  return v < 0.005 ? 'gratis' : `$${v.toFixed(2)}`
+  return v < 0.005 ? 'grátis' : `$${v.toFixed(2)}`
 }
 
 function lastWorkspace(): string {
@@ -152,7 +152,7 @@ function lastWorkspace(): string {
 async function send(text: string, reasoning: Reasoning | undefined, mode: RunMode, agent: string | undefined, improve: boolean, images: ImageAttachment[], role: string | undefined): Promise<void> {
   error.value = ''
   if (!workspace.value.trim()) {
-    error.value = 'Escolha a pasta da sessao no seletor'
+    error.value = 'Escolha a pasta da sessão no seletor'
     return
   }
   creating.value = true
@@ -194,7 +194,7 @@ async function send(text: string, reasoning: Reasoning | undefined, mode: RunMod
       <div class="stats-card" v-if="stats">
         <div class="stats-head">
           <div class="stats-tabs">
-            <button :class="{ active: tab === 'geral' }" @click="tab = 'geral'">Visao Geral</button>
+            <button :class="{ active: tab === 'geral' }" @click="tab = 'geral'">Visão Geral</button>
             <button :class="{ active: tab === 'modelos' }" @click="tab = 'modelos'">Modelos</button>
           </div>
           <div class="stats-periods">
@@ -206,13 +206,13 @@ async function send(text: string, reasoning: Reasoning | undefined, mode: RunMod
 
         <template v-if="tab === 'geral'">
           <div class="stats-grid">
-            <div class="stat"><span class="stat-label">Sessoes</span><span class="stat-value">{{ fmt(stats.sessions) }}</span></div>
+            <div class="stat"><span class="stat-label">Sessões</span><span class="stat-value">{{ fmt(stats.sessions) }}</span></div>
             <div class="stat"><span class="stat-label">Mensagens</span><span class="stat-value">{{ fmt(stats.messages) }}</span></div>
             <div class="stat"><span class="stat-label">Total de tokens</span><span class="stat-value">{{ fmt(stats.total_tokens) }}</span></div>
             <div class="stat"><span class="stat-label">Dias ativos</span><span class="stat-value">{{ stats.active_days }}</span></div>
-            <div class="stat"><span class="stat-label">Sequencia atual</span><span class="stat-value">{{ stats.current_streak_days }}d</span></div>
-            <div class="stat"><span class="stat-label">Maior sequencia</span><span class="stat-value">{{ stats.longest_streak_days }}d</span></div>
-            <div class="stat"><span class="stat-label">Horario de pico</span><span class="stat-value">{{ stats.peak_hour === null ? '-' : String(stats.peak_hour).padStart(2, '0') }}</span></div>
+            <div class="stat"><span class="stat-label">Sequência atual</span><span class="stat-value">{{ stats.current_streak_days }}d</span></div>
+            <div class="stat"><span class="stat-label">Maior sequência</span><span class="stat-value">{{ stats.longest_streak_days }}d</span></div>
+            <div class="stat"><span class="stat-label">Horário de pico</span><span class="stat-value">{{ stats.peak_hour === null ? '-' : String(stats.peak_hour).padStart(2, '0') }}</span></div>
             <div class="stat"><span class="stat-label">Modelo favorito</span><span class="stat-value stat-model">{{ shortModel(stats.favorite_model) }}</span></div>
           </div>
           <div class="heatmap">
@@ -237,7 +237,7 @@ async function send(text: string, reasoning: Reasoning | undefined, mode: RunMod
               </tr>
             </tbody>
           </table>
-          <p v-else class="muted small">Sem chamadas no periodo.</p>
+          <p v-else class="muted small">Sem chamadas no período.</p>
         </template>
       </div>
     </div>

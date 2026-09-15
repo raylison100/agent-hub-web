@@ -236,23 +236,23 @@ function pick(id: string): void {
 
 <template>
   <section class="settings-page" :class="{ centralizada: !comoPainel }">
-    <h1>{{ comoPainel ? 'Conexao' : 'Conectar ao daemon' }}</h1>
-    <p v-if="tentandoAuto" class="muted">Procurando o daemon nesta maquina...</p>
+    <h1>{{ comoPainel ? 'Conexão' : 'Conectar ao daemon' }}</h1>
+    <p v-if="tentandoAuto" class="muted">Procurando o daemon nesta máquina...</p>
     <template v-else>
       <p v-if="connection.status === 'online'" class="muted">
         Conectado em <strong>{{ connection.device || 'este computador' }}</strong> por <code>{{ connection.url }}</code>.
-        Nesta maquina a conexao e automatica: o daemon serve a interface e entrega a credencial sozinho.
+        Nesta máquina a conexão é automática: o daemon serve a interface e entrega a credencial sozinho.
       </p>
       <InstallHelp v-else-if="semDaemon" :tentando="tentandoAuto" @tentar="conectarSozinho" />
       <p v-else class="muted">
-        Na propria maquina a conexao e automatica: abra <code>http://127.0.0.1:47311</code> e o daemon entrega a
+        Na própria máquina a conexão é automática: abra <code>http://127.0.0.1:47311</code> e o daemon entrega a
         credencial sozinho. Os campos abaixo servem para outro dispositivo, celular ou acesso pelo relay.
       </p>
       <div class="row">
         <button v-if="connection.status !== 'online' && !semDaemon" class="primary" type="button" :disabled="busy" @click="conectarSozinho">
-          Tentar de novo nesta maquina
+          Tentar de novo nesta máquina
         </button>
-        <button type="button" @click="manualAberto = !manual">{{ manual ? 'Esconder conexao manual' : semDaemon ? 'Conectar a um daemon de outra maquina' : 'Conectar outro dispositivo' }}</button>
+        <button type="button" @click="manualAberto = !manual">{{ manual ? 'Esconder conexão manual' : semDaemon ? 'Conectar a um daemon de outra máquina' : 'Conectar outro dispositivo' }}</button>
       </div>
     </template>
     <form v-if="manual" @submit.prevent="connect">
@@ -292,8 +292,8 @@ function pick(id: string): void {
     <div v-if="manual" class="bloco">
         <h2>Entrar com senha</h2>
         <p class="muted small">
-          Para um daemon que nao e o desta maquina. Voce digita a senha uma vez e este dispositivo guarda uma
-          credencial propria, que voce revoga quando quiser, sem trocar a senha dos outros.
+          Para um daemon que não é o desta máquina. Você digita a senha uma vez e este dispositivo guarda uma
+          credencial própria, que você revoga quando quiser, sem trocar a senha dos outros.
         </p>
         <form @submit.prevent="entrarComSenha">
           <label>
@@ -311,12 +311,12 @@ function pick(id: string): void {
     <div v-if="connection.status === 'online'" class="bloco">
       <h2>Daemon</h2>
       <p class="muted small">
-        Mudou perfil, papel, preco ou conector: recarregar basta, e nada cai. Mudou o codigo do daemon: precisa
-        reiniciar. Com o servico do systemd instalado (<code>make servico</code>) ele volta sozinho e sobe junto com a
-        maquina; sem o servico, o daemon deixa um processo novo no lugar antes de sair.
+        Mudou perfil, papel, preço ou conector: recarregar basta, e nada cai. Mudou o código do daemon: precisa
+        reiniciar. Com o serviço do systemd instalado (<code>make servico</code>) ele volta sozinho e sobe junto com a
+        máquina; sem o serviço, o daemon deixa um processo novo no lugar antes de sair.
       </p>
       <div class="row">
-        <button type="button" :disabled="reiniciando" @click="recarregar">Recarregar configuracao</button>
+        <button type="button" :disabled="reiniciando" @click="recarregar">Recarregar configuração</button>
         <button type="button" :disabled="reiniciando" @click="reiniciarDaemon">{{ reiniciando ? 'Reiniciando...' : 'Reiniciar daemon' }}</button>
       </div>
       <p v-if="daemonAviso" class="muted small">{{ daemonAviso }}</p>
@@ -325,8 +325,8 @@ function pick(id: string): void {
     <div v-if="connection.status === 'online'" class="bloco">
         <h2>Acesso remoto</h2>
         <p class="muted small">
-          {{ senhaDefinida ? 'Ha uma senha definida neste daemon.' : 'Sem senha definida: nenhum dispositivo de fora consegue entrar.' }}
-          Minimo de oito caracteres.
+          {{ senhaDefinida ? 'Há uma senha definida neste daemon.' : 'Sem senha definida: nenhum dispositivo de fora consegue entrar.' }}
+          Mínimo de oito caracteres.
         </p>
         <form @submit.prevent="definirSenha">
           <label>
@@ -336,11 +336,11 @@ function pick(id: string): void {
           <button type="submit" :disabled="novaSenha.length < 8">{{ senhaDefinida ? 'Trocar' : 'Definir' }}</button>
         </form>
         <h2>Dispositivos autorizados</h2>
-        <p v-if="!dispositivos.length" class="muted small">Nenhum. Esta maquina nao precisa de credencial.</p>
+        <p v-if="!dispositivos.length" class="muted small">Nenhum. Esta máquina não precisa de credencial.</p>
         <ul class="list">
           <li v-for="d in dispositivos" :key="d.id">
             <strong>{{ d.name }}</strong>
-            <span class="muted small">ultimo acesso {{ quando(d.lastSeen) }}</span>
+            <span class="muted small">último acesso {{ quando(d.lastSeen) }}</span>
             <span class="spacer"></span>
             <button class="ghost small" @click="revogar = d">Revogar</button>
           </li>
@@ -348,10 +348,10 @@ function pick(id: string): void {
       </div>
 
     <div v-if="connection.status === 'online'" class="push">
-      <p class="muted small">Notificacoes push para aprovacoes e fim de run. Funcionam em localhost e em HTTPS.</p>
+      <p class="muted small">Notificações push para aprovações e fim de run. Funcionam em localhost e em HTTPS.</p>
       <div class="row">
         <button type="button" :disabled="push === 'unsupported' || push === 'denied'" @click="togglePush">
-          {{ push === 'on' ? 'Desativar notificacoes' : push === 'unsupported' ? 'Sem suporte neste navegador' : push === 'denied' ? 'Permissao negada' : 'Ativar notificacoes' }}
+          {{ push === 'on' ? 'Desativar notificações' : push === 'unsupported' ? 'Sem suporte neste navegador' : push === 'denied' ? 'Permissão negada' : 'Ativar notificações' }}
         </button>
         <button v-if="push === 'on'" type="button" @click="testPush">Testar</button>
       </div>

@@ -3,7 +3,9 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import RightPanel from './components/RightPanel.vue'
 import Sidebar from './components/Sidebar.vue'
+import CartaoDeAprovacao from './components/ui/CartaoDeAprovacao.vue'
 import FeedbackHost from './components/ui/FeedbackHost.vue'
+import Icone from './components/ui/Icone.vue'
 import { useConnection } from './stores/connection'
 import { useSessions } from './stores/sessions'
 import { useVisualizacao } from './stores/visualizacao'
@@ -118,11 +120,11 @@ onMounted(async () => {
     <div v-if="sidebarFlutuante" class="sidebar-backdrop" @click="sidebarOpen = false"></div>
     <main class="main">
       <header v-if="!inSettings" class="topbar">
-        <button v-if="!sidebarOpen" class="icon" title="Mostrar barra lateral" @click="sidebarOpen = true">|||</button>
+        <button v-if="!sidebarOpen" class="icon" title="Mostrar barra lateral" aria-label="Mostrar barra lateral" @click="sidebarOpen = true"><Icone nome="menu" /></button>
         <RouterView name="header" />
         <span class="spacer"></span>
-        <button v-if="route.name === 'chat' && !estreito" class="icon" :title="panelOpen ? 'Ocultar painel' : 'Mostrar painel'" @click="panelOpen = !panelOpen">
-          {{ panelOpen ? '>|' : '|<' }}
+        <button v-if="route.name === 'chat' && !estreito" class="icon" :title="panelOpen ? 'Ocultar painel' : 'Mostrar painel'" :aria-label="panelOpen ? 'Ocultar painel' : 'Mostrar painel'" @click="panelOpen = !panelOpen">
+          <Icone nome="painel" />
         </button>
       </header>
       <RouterView />
@@ -145,15 +147,7 @@ onMounted(async () => {
     <RightPanel v-else-if="panelOpen && route.name === 'chat' && !estreito" :session-id="String(route.params.id ?? '')" />
     <div v-if="sessions.approvals.length" class="approval-dock">
       <div v-for="a in sessions.approvals" :key="a.id" class="approval">
-        <div class="approval-head">
-          <strong>{{ a.tool }}</strong>
-          <span class="risk" :data-risk="a.risk">{{ a.risk }}</span>
-        </div>
-        <pre class="args">{{ JSON.stringify(a.args, null, 2) }}</pre>
-        <div class="approval-actions">
-          <button class="primary" @click="sessions.respond(a.id, 'allow')">Aprovar</button>
-          <button @click="sessions.respond(a.id, 'deny')">Negar</button>
-        </div>
+        <CartaoDeAprovacao :ferramenta="a.tool" :args="a.args" :risco="a.risk" @aprovar="sessions.respond(a.id, 'allow')" @negar="sessions.respond(a.id, 'deny')" />
       </div>
     </div>
     <FeedbackHost />

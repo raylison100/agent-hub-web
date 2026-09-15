@@ -72,7 +72,7 @@ onMounted(async () => {
   solto = client.on((frame) => {
     if (frame.type === 'term.data' && frame.term_id === termId) term?.write(frame.data)
     if (frame.type === 'term.exit' && frame.term_id === termId) {
-      term?.writeln(`\r\n[shell encerrado com codigo ${frame.code}]`)
+      term?.writeln(`\r\n[shell encerrado com código ${frame.code}]`)
       guardados.delete(props.sessionId)
       termId = ''
     }

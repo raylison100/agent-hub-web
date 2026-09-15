@@ -56,7 +56,7 @@ async function abrir(s: Skill): Promise<void> {
     <div class="page-head">
       <div>
         <h1>Skills</h1>
-        <p class="muted small">Instrucoes reutilizaveis em agents/skills e nos plugins. Cada perfil lista as que pode carregar, e o roteador ativa por regra.</p>
+        <p class="muted small">Instruções reutilizáveis em agents/skills e nos plugins. Cada perfil lista as que pode carregar, e o roteador ativa por regra.</p>
       </div>
       <input v-model="busca" type="search" placeholder="Buscar skill" />
     </div>

@@ -151,10 +151,10 @@ const showMode = aberto('modo')
 const overrideValue = ref('')
 
 const modes: { value: RunMode; label: string; detail: string }[] = [
-  { value: 'auto_approve', label: 'Automatico', detail: 'Aprova tudo, exceto comandos destrutivos, que ainda perguntam' },
-  { value: 'normal', label: 'Manual', detail: 'Segue a politica do perfil: pergunta antes de escrever e executar' },
-  { value: 'accept_edits', label: 'Aceitar edicoes', detail: 'Escreve arquivos sem perguntar; comandos ainda pedem aprovacao' },
-  { value: 'draft', label: 'Planejar', detail: 'So le e propoe; nenhuma escrita nem execucao' },
+  { value: 'auto_approve', label: 'Automático', detail: 'Aprova tudo, exceto comandos destrutivos, que ainda perguntam' },
+  { value: 'normal', label: 'Manual', detail: 'Segue a política do perfil: pergunta antes de escrever e executar' },
+  { value: 'accept_edits', label: 'Aceitar edições', detail: 'Escreve arquivos sem perguntar; comandos ainda pedem aprovação' },
+  { value: 'draft', label: 'Planejar', detail: 'Só lê e propõe; nenhuma escrita nem execução' },
 ]
 
 const modeKey = 'agent-hub.mode.run'
@@ -203,8 +203,8 @@ onMounted(() => window.addEventListener('keydown', onGlobalKey))
 onUnmounted(() => window.removeEventListener('keydown', onGlobalKey))
 
 const levels: { value: Reasoning; label: string }[] = [
-  { value: 'low', label: 'Mais rapido' },
-  { value: 'medium', label: 'Medio' },
+  { value: 'low', label: 'Mais rápido' },
+  { value: 'medium', label: 'Médio' },
   { value: 'high', label: 'Alto' },
   { value: 'max', label: 'Mais inteligente' },
 ]
@@ -225,11 +225,11 @@ const bars = computed(() => {
   const window = props.agent?.context_window ?? 0
   out.push({ label: 'Janela de contexto', value: props.run?.lastInputTokens ?? 0, limit: window || null, unit: 'tokens' })
   out.push({ label: 'Run atual', value: props.run?.costUsd ?? 0, limit: props.agent?.budget.run_usd ?? null, unit: 'USD' })
-  out.push({ label: 'Sessao', value: props.session?.costUsd ?? 0, limit: props.agent?.budget.session_usd ?? null, unit: 'USD' })
+  out.push({ label: 'Sessão', value: props.session?.costUsd ?? 0, limit: props.agent?.budget.session_usd ?? null, unit: 'USD' })
   const status = sessions.costStatus
   const agentStatus = props.agent ? status?.agents[props.agent.name] : undefined
   out.push({ label: `Hoje, ${props.agent?.name ?? 'agente'}`, value: agentStatus?.todayUsd ?? 0, limit: agentStatus?.dayLimit ?? null, unit: 'USD' })
-  out.push({ label: 'Mes, todos os agentes', value: status?.monthUsd ?? 0, limit: status?.globalMonthLimit ?? null, unit: 'USD' })
+  out.push({ label: 'Mês, todos os agentes', value: status?.monthUsd ?? 0, limit: status?.globalMonthLimit ?? null, unit: 'USD' })
   return out
 })
 
@@ -278,7 +278,7 @@ const escopoDoLimite = computed<EscopoDeLimite>(() => {
   return (achado?.[1] as EscopoDeLimite | undefined) ?? 'run'
 })
 
-const nomeDoLimite = computed(() => ({ run: 'limite de gasto do run', session: 'limite de gasto da sessao', agent: 'limite de gasto do dia deste agente', global: 'limite de gasto do mes' })[escopoDoLimite.value])
+const nomeDoLimite = computed(() => ({ run: 'limite de gasto do run', session: 'limite de gasto da sessão', agent: 'limite de gasto do dia deste agente', global: 'limite de gasto do mês' })[escopoDoLimite.value])
 
 const limiteSugerido = computed(() => (limiteAtual.value ? Math.ceil(limiteAtual.value * 2 * 10) / 10 : 3))
 
@@ -302,7 +302,7 @@ defineExpose({ inserir: insert })
   <footer class="composer">
     <p v-if="error" class="error">{{ error }}</p>
     <div v-if="run?.stop === 'budget_exceeded' && !running" class="row limite-row">
-      <span class="small muted">O run parou no {{ nomeDoLimite }}{{ limiteAtual ? ` (${limiteAtual.toFixed(2)} USD)` : '' }}. Continuar, so desta vez, com o limite de</span>
+      <span class="small muted">O run parou no {{ nomeDoLimite }}{{ limiteAtual ? ` (${limiteAtual.toFixed(2)} USD)` : '' }}. Continuar, só desta vez, com o limite de</span>
       <input v-model="overrideValue" type="number" step="0.1" min="0.1" :placeholder="limiteSugerido.toFixed(2)" aria-label="novo limite do run em USD" />
       <span class="small muted">USD</span>
       <button :disabled="!limiteValido" @click="override">Continuar</button>
@@ -325,7 +325,7 @@ defineExpose({ inserir: insert })
         ref="textarea"
         v-model="text"
         rows="3"
-        placeholder="Descreva uma tarefa ou faca uma pergunta"
+        placeholder="Descreva uma tarefa ou faça uma pergunta"
         @keydown="onKey"
         @paste="onPaste"
         @drop="onDrop"
@@ -362,10 +362,10 @@ defineExpose({ inserir: insert })
             {{ agentChip }}
           </button>
           <div v-if="showAgent" class="popover left">
-            <div class="popover-title">Agente desta sessao</div>
+            <div class="popover-title">Agente desta sessão</div>
             <button class="mode-option" :class="{ active: chosenAgent === 'auto' }" @click="pickAgent('auto')">
               <span class="mode-name">Auto</span>
-              <span class="mode-detail">O harness escolhe a cada mensagem por regra, classificador ou padrao</span>
+              <span class="mode-detail">O harness escolhe a cada mensagem por regra, classificador ou padrão</span>
             </button>
             <button v-for="a in sessions.agents" :key="a.name" class="mode-option" :class="{ active: chosenAgent === a.name }" @click="pickAgent(a.name)">
               <span class="mode-name">{{ a.name }}</span>
@@ -374,14 +374,14 @@ defineExpose({ inserir: insert })
           </div>
         </div>
         <div class="popover-anchor">
-          <button class="chip-button" :class="{ auto: chosenRole !== null }" title="O papel define o prompt, as ferramentas e a politica; o modelo continua sendo escolhido pelo harness" @click="alternar('papel')">
+          <button class="chip-button" :class="{ auto: chosenRole !== null }" title="O papel define o prompt, as ferramentas e a política; o modelo continua sendo escolhido pelo harness" @click="alternar('papel')">
             {{ roleChip }}
           </button>
           <div v-if="showRole" class="popover left">
-            <div class="popover-title">Papel desta sessao</div>
+            <div class="popover-title">Papel desta sessão</div>
             <button class="mode-option" :class="{ active: chosenRole === null }" @click="pickRole(null)">
               <span class="mode-name">Sem papel</span>
-              <span class="mode-detail">O agente usa o proprio prompt e as proprias ferramentas</span>
+              <span class="mode-detail">O agente usa o próprio prompt e as próprias ferramentas</span>
             </button>
             <button v-for="r in sessions.roles" :key="r.name" class="mode-option" :class="{ active: chosenRole === r.name }" @click="pickRole(r.name)">
               <span class="mode-name">{{ r.name }}</span>
@@ -396,9 +396,9 @@ defineExpose({ inserir: insert })
         <span v-if="run?.phase" class="chip">fase {{ run.phase }}</span>
         <span class="spacer"></span>
         <div class="popover-anchor">
-          <button class="chip-button" @click="alternar('esforco')">Esforco {{ effortLabel }}</button>
+          <button class="chip-button" @click="alternar('esforco')">Esforço {{ effortLabel }}</button>
           <div v-if="showEffort" class="popover">
-            <div class="popover-title">Esforco de raciocinio</div>
+            <div class="popover-title">Esforço de raciocínio</div>
             <div class="effort-scale">
               <button
                 v-for="l in levels"
@@ -410,7 +410,7 @@ defineExpose({ inserir: insert })
                 {{ l.label }}
               </button>
             </div>
-            <button class="link" @click="reasoning = ''; fechar('esforco')">Usar o padrao do perfil ({{ agent?.reasoning ?? 'medium' }})</button>
+            <button class="link" @click="reasoning = ''; fechar('esforco')">Usar o padrão do perfil ({{ agent?.reasoning ?? 'medium' }})</button>
           </div>
         </div>
         <div class="popover-anchor">

@@ -114,7 +114,7 @@ watch(running, async (agora) => {
 async function continuarComLimite(limiteUsd: number, escopo: 'run' | 'session' | 'agent' | 'global'): Promise<void> {
   error.value = ''
   try {
-    await sessions.start(props.id, 'Continue de onde o run anterior parou no limite de gasto, sem refazer o que ja esta pronto.', undefined, session.value?.mode, undefined, false, undefined, limiteUsd, escopo)
+    await sessions.start(props.id, 'Continue de onde o run anterior parou no limite de gasto, sem refazer o que já está pronto.', undefined, session.value?.mode, undefined, false, undefined, limiteUsd, escopo)
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err)
   }
@@ -138,7 +138,7 @@ async function expand(value: string): Promise<string> {
   const skill = /^\/([a-z0-9][a-z0-9:_-]*)\s*([\s\S]*)$/i.exec(value)
   if (skill && !skill[1]!.includes(':') && skill[1] !== 'anexar') {
     const res = await client.request({ type: 'skill.get', name: skill[1]! }, 'skill.get').catch(() => null)
-    if (res) return `${skill[2]!.trim() || 'Aplique estas instrucoes ao contexto atual.'}\n\n<skill name="${res.name}">\n${res.body}\n</skill>`
+    if (res) return `${skill[2]!.trim() || 'Aplique estas instruções ao contexto atual.'}\n\n<skill name="${res.name}">\n${res.body}\n</skill>`
   }
   const prompt = /^\/([a-z0-9_-]+):([a-z0-9_.-]+)\s*(.*)$/is.exec(value)
   if (prompt) {
@@ -163,11 +163,11 @@ function scrollDown(): void {
 <template>
   <section class="chat">
     <div class="chat-title">
-      <strong>{{ session?.title ?? 'Sessao' }}</strong>
+      <strong>{{ session?.title ?? 'Sessão' }}</strong>
       <span class="chip">{{ session?.agent }}</span>
       <span class="muted small path">{{ session?.workspace }}</span>
       <span class="spacer"></span>
-      <span class="muted small">sessao {{ (session?.costUsd ?? 0).toFixed(4) }} USD</span>
+      <span class="muted small">sessão {{ (session?.costUsd ?? 0).toFixed(4) }} USD</span>
       <span v-if="run" class="muted small">run {{ run.costUsd.toFixed(4) }} USD, {{ run.steps }} passos</span>
     </div>
     <div ref="scroller" class="timeline">
@@ -182,7 +182,7 @@ function scrollDown(): void {
         <button class="ghost small" @click="mostrarRetomada = false">Esconder</button>
       </div>
       <p class="retomada-tarefa">{{ retomada.resume.tarefa }}</p>
-      <p v-if="retomada.resume.proximo_passo" class="muted small">Proximo passo: {{ retomada.resume.proximo_passo }}</p>
+      <p v-if="retomada.resume.proximo_passo" class="muted small">Próximo passo: {{ retomada.resume.proximo_passo }}</p>
       <ul v-if="retomada.resume.pendencias.length" class="retomada-lista">
         <li v-for="p in retomada.resume.pendencias" :key="p">{{ p }}</li>
       </ul>

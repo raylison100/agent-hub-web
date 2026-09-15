@@ -100,7 +100,7 @@ function criarPapel(): Promise<void> {
     const criado = await client.request({ type: 'plugins.papel', plugin, modelos: modelos.value }, 'plugins.papel_criado')
     plugins.value = (await client.request({ type: 'plugins.list' }, 'plugins.list')).plugins
     papelDe.value = null
-    aviso.value = `Papel ${criado.papel} criado. Numa sessao nova, escolha o papel ${criado.papel} no botao de papel abaixo da caixa de texto.`
+    aviso.value = `Papel ${criado.papel} criado. Numa sessão nova, escolha o papel ${criado.papel} no botão de papel abaixo da caixa de texto.`
   })
 }
 
@@ -113,8 +113,8 @@ function mensagem(err: unknown): string {
   <section class="settings-page">
     <h1>Plugins</h1>
     <p class="muted">
-      Pacotes no formato do Claude Code com skills, agentes, servidores MCP e hooks. Um plugin roda comandos na sua maquina
-      (servidores MCP, hooks e scripts das skills): adicione so os de origem confiavel.
+      Pacotes no formato do Claude Code com skills, agentes, servidores MCP e hooks. Um plugin roda comandos na sua máquina
+      (servidores MCP, hooks e scripts das skills): adicione só os de origem confiável.
     </p>
     <p v-if="erro" class="error">{{ erro }}</p>
     <p v-if="aviso" class="small">{{ aviso }}</p>
@@ -125,7 +125,7 @@ function mensagem(err: unknown): string {
         <li v-for="p in paraImportar" :key="p.id" class="linha">
           <div class="info">
             <strong>{{ p.nome }}</strong>
-            <span v-if="p.versao" class="muted small">versao {{ p.versao }}</span>
+            <span v-if="p.versao" class="muted small">versão {{ p.versao }}</span>
             <span class="muted small descricao">{{ p.descricao }}</span>
             <code class="small">{{ p.pasta }}</code>
           </div>
@@ -154,7 +154,7 @@ function mensagem(err: unknown): string {
             <div class="info">
               <strong>{{ p.name }}</strong>
               <span class="list-meta">
-                <span v-if="p.versao" class="muted">versao {{ p.versao }}</span>
+                <span v-if="p.versao" class="muted">versão {{ p.versao }}</span>
                 <span class="tag" :data-state="p.enabled ? (p.erros.length ? 'error' : 'on') : 'off'">{{ p.enabled ? (p.erros.length ? 'com erro' : 'ligado') : 'desligado' }}</span>
                 <span v-if="p.enabled" class="muted">{{ p.skills }} skills, {{ p.mcp }} MCP, {{ p.agents }} agentes, {{ p.hooks }} hooks</span>
               </span>
@@ -174,7 +174,7 @@ function mensagem(err: unknown): string {
           </div>
 
           <div v-if="p.enabled && (p.skills || p.mcp)" class="small papel">
-            <template v-if="p.papel">Papel <code>{{ p.papel }}</code> pronto: escolha-o numa sessao nova.</template>
+            <template v-if="p.papel">Papel <code>{{ p.papel }}</code> pronto: escolha-o numa sessão nova.</template>
             <template v-else-if="papelDe === p.name">
               <span>Modelos que o papel pode usar:</span>
               <label v-for="a in agentes.filter((x) => !x.name.includes('-'))" :key="a.name" class="opcao">
@@ -186,7 +186,7 @@ function mensagem(err: unknown): string {
             </template>
             <template v-else>
               <button class="ghost small" type="button" @click="abrirPapel(p)">Criar papel com as skills</button>
-              <span class="muted">um papel junta as skills, os servidores MCP e as ferramentas de escrita para voce escolher na sessao</span>
+              <span class="muted">um papel junta as skills, os servidores MCP e as ferramentas de escrita para você escolher na sessão</span>
             </template>
           </div>
         </li>
@@ -196,7 +196,7 @@ function mensagem(err: unknown): string {
     <ConfirmDialog
       v-if="remover"
       title="Remover plugin"
-      :detail="`${remover.name} sai da lista e as skills dele somem dos agentes. A pasta do plugin nao e apagada.`"
+      :detail="`${remover.name} sai da lista e as skills dele somem dos agentes. A pasta do plugin não é apagada.`"
       confirm-label="Remover"
       @confirm="confirmarRemover"
       @cancel="remover = null"

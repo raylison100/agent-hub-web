@@ -113,12 +113,12 @@ function quando(ts: number): string {
       </button>
       <button :class="{ active: tab === 'terminal' }" @click="tab = 'terminal'">Terminal</button>
       <button :class="{ active: tab === 'saidas' }" @click="tab = 'saidas'">
-        Saidas <span v-if="entries.length" class="badge muted-badge">{{ entries.length }}</span>
+        Saídas <span v-if="entries.length" class="badge muted-badge">{{ entries.length }}</span>
       </button>
     </div>
 
     <div v-if="tab === 'subagents'" class="panel-scroll">
-      <p v-if="!subagents.length" class="muted small pad">Nenhum subagente nesta sessao. Perfis com <code>delegates</code> mostram aqui cada delegacao ao vivo.</p>
+      <p v-if="!subagents.length" class="muted small pad">Nenhum subagente nesta sessão. Perfis com <code>delegates</code> mostram aqui cada delegação ao vivo.</p>
       <div v-for="(s, i) in subagents" :key="i" class="panel-sub">
         <div class="panel-sub-head">
           <span class="pulse" :data-status="s.status"></span>
@@ -132,7 +132,7 @@ function quando(ts: number): string {
 
     <div v-else-if="tab === 'tarefas'" class="panel-scroll">
       <div class="panel-head-row">
-        <span class="muted small">Subagentes em segundo plano desta sessao</span>
+        <span class="muted small">Subagentes em segundo plano desta sessão</span>
         <button class="ghost small" @click="carregarTarefas">Atualizar</button>
       </div>
       <p v-if="!tarefas.length" class="muted small pad">Nada rodando em segundo plano. A ferramenta <code>spawn</code> cria tarefas assim.</p>
@@ -144,7 +144,7 @@ function quando(ts: number): string {
           <span class="cost">{{ t.cost_usd.toFixed(4) }} USD</span>
         </div>
         <div class="muted small">{{ t.task }}</div>
-        <div class="muted small">ha {{ quando(t.started_at) }}<span v-if="t.collected">, ja recolhida pelo agente</span></div>
+        <div class="muted small">há {{ quando(t.started_at) }}<span v-if="t.collected">, já recolhida pelo agente</span></div>
       </div>
     </div>
 
@@ -179,7 +179,7 @@ function quando(ts: number): string {
     <TerminalPane v-else-if="tab === 'terminal'" :session-id="sessionId" />
 
     <div v-else class="panel-scroll terminal">
-      <p v-if="!entries.length" class="muted small pad">Saidas de run_command e git aparecem aqui.</p>
+      <p v-if="!entries.length" class="muted small pad">Saídas de run_command e git aparecem aqui.</p>
       <div v-for="(e, i) in entries" :key="i" class="term-entry">
         <div class="term-cmd">$ {{ e.command }}</div>
         <pre class="term-out">{{ e.output }}</pre>

@@ -123,8 +123,8 @@ function formatar(n: number): string {
   <section class="settings-page">
     <h1>Compartilhar modelos</h1>
     <p class="muted">
-      Pessoas de confianca usam os modelos do Ollama umas das outras pelo relay. So a chamada ao modelo atravessa: as
-      ferramentas, os arquivos e as aprovacoes ficam na maquina de quem usa. Quem compartilha ve os pedidos, porque e a
+      Pessoas de confiança usam os modelos do Ollama umas das outras pelo relay. Só a chamada ao modelo atravessa: as
+      ferramentas, os arquivos e as aprovações ficam na máquina de quem usa. Quem compartilha vê os pedidos, porque é a
       placa dele que processa.
     </p>
     <p v-if="erro" class="error">{{ erro }}</p>
@@ -141,7 +141,7 @@ function formatar(n: number): string {
         </label>
         <fieldset>
           <legend class="small">Modelos liberados</legend>
-          <p v-if="!modelosLocais.length" class="muted small">Nenhum modelo encontrado no Ollama desta maquina.</p>
+          <p v-if="!modelosLocais.length" class="muted small">Nenhum modelo encontrado no Ollama desta máquina.</p>
           <label v-for="m in modelosLocais" :key="m" class="opcao">
             <input v-model="escolhidos" type="checkbox" :value="m" />
             <code>{{ m }}</code>
@@ -160,7 +160,7 @@ function formatar(n: number): string {
         <button class="primary" type="submit" :disabled="!nome.trim() || !escolhidos.length">Gerar convite</button>
       </form>
       <div v-if="conviteGerado" class="convite">
-        <p class="small">Mande este convite so para essa pessoa, por um canal privado. Quem tem o convite usa os modelos liberados.</p>
+        <p class="small">Mande este convite só para essa pessoa, por um canal privado. Quem tem o convite usa os modelos liberados.</p>
         <code class="texto">{{ conviteGerado }}</code>
         <button type="button" @click="copiarConvite">{{ copiado ? 'Copiado' : 'Copiar convite' }}</button>
       </div>
@@ -189,7 +189,7 @@ function formatar(n: number): string {
         </label>
         <label class="opcao">
           <input v-model="noRoteamento" type="checkbox" />
-          Usar so quando eu escolher o agente (fora do roteamento automatico)
+          Usar só quando eu escolher o agente (fora do roteamento automático)
         </label>
         <button class="primary" type="submit" :disabled="!textoConvite.trim()">Adicionar</button>
       </form>
@@ -199,7 +199,7 @@ function formatar(n: number): string {
           <div>
             <strong>{{ r.anfitriao }}</strong>
             <span class="muted small">agentes: {{ r.agentes.join(', ') }}</span>
-            <span class="muted small">{{ r.no_roteamento ? 'so quando escolhido' : 'entra no roteamento automatico' }}, ate {{ formatar(r.limite_tokens_dia) }} tokens por dia</span>
+            <span class="muted small">{{ r.no_roteamento ? 'só quando escolhido' : 'entra no roteamento automático' }}, até {{ formatar(r.limite_tokens_dia) }} tokens por dia</span>
             <span v-if="testes.get(r.id)" class="small">{{ testes.get(r.id) }}</span>
           </div>
           <span class="spacer"></span>
@@ -220,7 +220,7 @@ function formatar(n: number): string {
     <ConfirmDialog
       v-if="remover"
       title="Remover convite recebido"
-      :detail="`Os agentes de ${remover.anfitriao} somem desta maquina.`"
+      :detail="`Os agentes de ${remover.anfitriao} somem desta máquina.`"
       confirm-label="Remover"
       @confirm="confirmarRemover"
       @cancel="remover = null"

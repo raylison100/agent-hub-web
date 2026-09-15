@@ -86,7 +86,7 @@ async function browseNative(): Promise<void> {
   error.value = ''
   try {
     const base = path.value ?? props.modelValue ?? roots.value[0] ?? ''
-    const picked = await pickFolder('Escolher a pasta da sessao', base ? toNativePath(base, wslDistro.value) : undefined)
+    const picked = await pickFolder('Escolher a pasta da sessão', base ? toNativePath(base, wslDistro.value) : undefined)
     if (picked === null) return
     const dir = toDaemonPath(picked)
     await client.request({ type: 'workspace.list', path: dir }, 'workspace.list')
@@ -112,7 +112,7 @@ async function browseNoNavegador(): Promise<void> {
       return
     }
     if (res.paths.length === 0) {
-      error.value = `A pasta "${nome}" nao esta dentro das raizes permitidas. Ajuste workspaces no config.toml.`
+      error.value = `A pasta "${nome}" não está dentro das raízes permitidas. Ajuste workspaces no config.toml.`
       return
     }
     candidatos.value = res.paths
@@ -130,7 +130,7 @@ function choose(dir: string): void {
 
 <template>
   <div class="popover-anchor ws-picker">
-    <button class="chip" :title="modelValue || 'Escolher a pasta da sessao'" @click="toggle">{{ label }}</button>
+    <button class="chip" :title="modelValue || 'Escolher a pasta da sessão'" @click="toggle">{{ label }}</button>
     <div v-if="open" class="popover left ws-panel">
       <button v-if="desktop" class="primary small ws-browse" @click="browseNative">Procurar no computador...</button>
       <button v-else-if="navegadorComSeletor" class="primary small ws-browse" @click="browseNoNavegador">Procurar no computador...</button>
@@ -142,7 +142,7 @@ function choose(dir: string): void {
         </button>
       </template>
       <template v-if="path === null">
-        <div class="popover-title">Pasta da sessao</div>
+        <div class="popover-title">Pasta da sessão</div>
         <template v-if="recents().length > 0">
           <div class="ws-section">Recentes</div>
           <button v-for="r in recents()" :key="r" class="ws-row" @click="choose(r)">
@@ -150,7 +150,7 @@ function choose(dir: string): void {
             <span class="ws-path">{{ r }}</span>
           </button>
         </template>
-        <div class="ws-section">Raizes permitidas</div>
+        <div class="ws-section">Raízes permitidas</div>
         <button v-for="r in roots" :key="r" class="ws-row" @click="enter(r)">
           <span class="ws-name">{{ r.split('/').filter(Boolean).pop() }}</span>
           <span class="ws-path">{{ r }}</span>
@@ -161,7 +161,7 @@ function choose(dir: string): void {
           <button class="ghost small" @click="back">Voltar</button>
           <span class="ws-current" :title="path">{{ path }}</span>
         </div>
-        <p v-if="!repo" class="ws-nota muted small">Esta pasta nao e um repositorio git. A ferramenta git nao funciona aqui; entre na pasta do repositorio.</p>
+        <p v-if="!repo" class="ws-nota muted small">Esta pasta não é um repositório git. A ferramenta git não funciona aqui; entre na pasta do repositório.</p>
         <button class="primary small ws-use" @click="choose(path)">Usar esta pasta</button>
         <div class="ws-list">
           <button v-for="d in dirs" :key="d" class="ws-row" @click="enter(`${path}/${d}`)">

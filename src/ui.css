@@ -369,3 +369,85 @@ a.ui-link-botao:hover {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+.ui-icone {
+  display: block;
+  flex: none;
+}
+
+.ui-aprovacao {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ui-aprovacao-topo {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.ui-aprovacao-risco {
+  font-size: var(--fs-small);
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.ui-aprovacao-risco.write {
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 50%, var(--border));
+}
+
+.ui-aprovacao-risco.exec {
+  color: var(--error);
+  border-color: color-mix(in srgb, var(--error) 50%, var(--border));
+}
+
+.ui-aprovacao-itens {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 10px;
+  margin: 0;
+  font-size: var(--fs-small);
+}
+
+.ui-aprovacao-itens dt {
+  color: var(--muted);
+}
+
+.ui-aprovacao-itens dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.ui-aprovacao-previa {
+  margin: 0;
+  max-height: 160px;
+  overflow: auto;
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  background: var(--code-bg);
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+
+.new-session {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+button.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+}
+
+.session-link .check {
+  display: inline-flex;
+  color: var(--accent);
+}

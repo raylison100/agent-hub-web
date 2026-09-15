@@ -67,9 +67,9 @@ function escolher(dir: string): void {
   <section class="settings-page">
     <h1>Contexto do projeto</h1>
     <p class="muted">
-      O que os agentes gravaram na pasta <code>.agent-hub</code> deste workspace. A memoria entra no inicio de cada
-      conversa quando a regra de ativacao casa com o pedido; especificacoes e decisoes ficam no disco e sao lidas sob
-      demanda. Memoria errada envenena resposta: apague sem dó.
+      O que os agentes gravaram na pasta <code>.agent-hub</code> deste workspace. A memória entra no início de cada
+      conversa quando a regra de ativação casa com o pedido; especificações e decisões ficam no disco e são lidas sob
+      demanda. Memória errada envenena resposta: apague sem dó.
     </p>
     <div class="row">
       <WorkspacePicker :model-value="workspace" @update:model-value="escolher" />
@@ -77,7 +77,7 @@ function escolher(dir: string): void {
     </div>
     <p v-if="error" class="error">{{ error }}</p>
 
-    <h2>Memoria <span class="muted small">{{ memories.length }} itens</span></h2>
+    <h2>Memória <span class="muted small">{{ memories.length }} itens</span></h2>
     <p v-if="!memories.length" class="muted small">Nada gravado ainda. Os agentes gravam com a ferramenta memory_write.</p>
     <div v-for="m in memories" :key="m.file" class="ctx-item">
       <div class="ctx-topo">
@@ -87,12 +87,12 @@ function escolher(dir: string): void {
         <span class="spacer"></span>
         <button class="ghost small" @click="apagar = m">Apagar</button>
       </div>
-      <p class="muted small">{{ m.description || 'sem descricao' }}</p>
+      <p class="muted small">{{ m.description || 'sem descrição' }}</p>
       <p v-if="m.activate" class="muted small">Ativa com: <code>{{ m.activate }}</code></p>
       <p class="muted small">{{ m.bytes }} bytes<span v-if="m.run">, run {{ m.run.slice(0, 8) }}</span></p>
     </div>
 
-    <h2>Especificacoes <span class="muted small">{{ specs.length }}</span></h2>
+    <h2>Especificações <span class="muted small">{{ specs.length }}</span></h2>
     <p v-if="!specs.length" class="muted small">Nenhuma. Um agente escreve com spec_write antes de executar tarefa grande.</p>
     <div v-for="s in specs" :key="s.file" class="ctx-item">
       <div class="ctx-topo">
@@ -103,7 +103,7 @@ function escolher(dir: string): void {
       <p class="muted small">{{ s.file }}, {{ s.bytes }} bytes</p>
     </div>
 
-    <h2>Decisoes <span class="muted small">{{ decisions.length }}</span></h2>
+    <h2>Decisões <span class="muted small">{{ decisions.length }}</span></h2>
     <p v-if="!decisions.length" class="muted small">Nenhuma registrada.</p>
     <div v-for="d in decisions" :key="d.file" class="ctx-item">
       <div class="ctx-topo">
@@ -117,7 +117,7 @@ function escolher(dir: string): void {
     <ConfirmDialog
       v-if="apagar"
       title="Apagar do contexto"
-      :detail="`Apagar ${apagar.file} do disco? Isso nao volta.`"
+      :detail="`Apagar ${apagar.file} do disco? Isso não volta.`"
       confirm-label="Apagar"
       @confirm="confirmarApagar"
       @cancel="apagar = null"

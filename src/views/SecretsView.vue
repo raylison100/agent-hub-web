@@ -77,7 +77,7 @@ onMounted(async () => {
     <h1>Chaves e segredos</h1>
     <p class="muted small">
       Guardadas no SQLite do daemon, cifradas com uma chave local em <code>~/.agent-hub/secrets.key</code>. A interface nunca recebe o valor de volta,
-      so o tamanho e os ultimos quatro caracteres. Variaveis ja definidas no ambiente do daemon tem prioridade.
+      só o tamanho e os últimos quatro caracteres. Variáveis já definidas no ambiente do daemon têm prioridade.
     </p>
     <form class="secret-form" @submit.prevent="save()">
       <label>

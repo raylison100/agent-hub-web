@@ -425,7 +425,7 @@ export const useSessions = defineStore('sessions', () => {
         }
         return
       case 'budget_warning':
-        t.push({ kind: 'info', tone: 'warn', text: `Orcamento ${event.warning.scope}: ${event.warning.spentUsd.toFixed(4)} de ${event.warning.limitUsd.toFixed(4)} USD` })
+        t.push({ kind: 'info', tone: 'warn', text: `Orçamento ${event.warning.scope}: ${event.warning.spentUsd.toFixed(4)} de ${event.warning.limitUsd.toFixed(4)} USD` })
         return
       case 'escalation':
         closeLive(t)
@@ -436,16 +436,16 @@ export const useSessions = defineStore('sessions', () => {
         t.push({
           kind: 'info',
           tone: 'warn',
-          text: `O raciocinio consumiu o teto de saida (${event.reasoningTokens} tokens) e a resposta veio vazia. Repetindo com teto ${event.maxOutput} e esforco ${event.reasoning}.`,
+          text: `O raciocínio consumiu o teto de saída (${event.reasoningTokens} tokens) e a resposta veio vazia. Repetindo com teto ${event.maxOutput} e esforço ${event.reasoning}.`,
         })
         return
       case 'compaction':
-        t.push({ kind: 'info', text: `Compactacao (${event.mode}): ${event.before} para ${event.after} tokens estimados` })
+        t.push({ kind: 'info', text: `Compactação (${event.mode}): ${event.before} para ${event.after} tokens estimados` })
         return
       case 'tools_selected':
         t.push({
           kind: 'info',
-          text: `Ferramentas: ${event.kept} enviadas neste pedido${event.reused ? ', as mesmas da mensagem anterior' : ''}, ${event.dropped} deixadas de fora por nao caberem no teto de ${event.budget} tokens`,
+          text: `Ferramentas: ${event.kept} enviadas neste pedido${event.reused ? ', as mesmas da mensagem anterior' : ''}, ${event.dropped} deixadas de fora por não caberem no teto de ${event.budget} tokens`,
         })
         return
       case 'mcp_skipped':
@@ -462,7 +462,7 @@ export const useSessions = defineStore('sessions', () => {
         const carregado = [...event.instructions, ...event.memories]
         t.push({
           kind: 'info',
-          text: `Contexto do projeto: ${carregado.length ? carregado.join(', ') : 'nada'} (${event.tokens} tokens)${event.inHistory?.length ? `. Ja na conversa: ${event.inHistory.join(', ')}` : ''}${event.ignored.length ? `. Fora: ${event.ignored.map((i) => `${i.name} (${i.reason})`).join(', ')}` : ''}`,
+          text: `Contexto do projeto: ${carregado.length ? carregado.join(', ') : 'nada'} (${event.tokens} tokens)${event.inHistory?.length ? `. Já na conversa: ${event.inHistory.join(', ')}` : ''}${event.ignored.length ? `. Fora: ${event.ignored.map((i) => `${i.name} (${i.reason})`).join(', ')}` : ''}`,
         })
         return
       }
@@ -479,8 +479,8 @@ export const useSessions = defineStore('sessions', () => {
       case 'verification':
         t.push(
           event.ok
-            ? { kind: 'info', text: `Verificacao de ${event.agent} passou${event.citations ? ` (${event.citations} citacoes conferidas)` : ''}` }
-            : { kind: 'info', tone: 'warn', text: `Verificacao de ${event.agent} falhou: ${event.failures.map((f) => f.reason).join('; ')}` },
+            ? { kind: 'info', text: `Verificação de ${event.agent} passou${event.citations ? ` (${event.citations} citações conferidas)` : ''}` }
+            : { kind: 'info', tone: 'warn', text: `Verificação de ${event.agent} falhou: ${event.failures.map((f) => f.reason).join('; ')}` },
         )
         return
       case 'routed':
@@ -550,8 +550,8 @@ export const useSessions = defineStore('sessions', () => {
 
 function routedText(event: Extract<RunEvent, { type: 'routed' }>): string {
   const by =
-    event.by === 'rule' ? 'regra' : event.by === 'classifier' ? 'classificador' : event.by === 'score' ? 'pontuacao' : event.by === 'default' ? 'padrao' : event.by === 'cascade' ? 'cascata' : event.by
-  const head = `Roteado para ${event.agent} (${event.model}) por ${by}${event.intent ? `, intencao ${event.intent}` : ''}${event.role ? `, papel ${event.role} escolhido pelo pedido` : ''}`
+    event.by === 'rule' ? 'regra' : event.by === 'classifier' ? 'classificador' : event.by === 'score' ? 'pontuação' : event.by === 'default' ? 'padrão' : event.by === 'cascade' ? 'cascata' : event.by
+  const head = `Roteado para ${event.agent} (${event.model}) por ${by}${event.intent ? `, intenção ${event.intent}` : ''}${event.role ? `, papel ${event.role} escolhido pelo pedido` : ''}`
   const top = (event.ranking ?? []).filter((r) => r.excluded === undefined).slice(0, 3)
   if (top.length === 0) return head
   const escolhido = top[0]

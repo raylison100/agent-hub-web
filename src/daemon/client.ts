@@ -128,11 +128,11 @@ export class DaemonClient {
             this.dispatch(frame)
         }
       }
-      socket.onerror = () => fail('falha na conexao')
+      socket.onerror = () => fail('falha na conexão')
       socket.onclose = () => {
-        for (const w of this.waiters.splice(0)) w.reject(new Error('conexao encerrada'))
+        for (const w of this.waiters.splice(0)) w.reject(new Error('conexão encerrada'))
         if (this.status !== 'error') this.setStatus('offline')
-        if (!settled) fail('conexao encerrada')
+        if (!settled) fail('conexão encerrada')
         this.scheduleReconnect()
       }
     })

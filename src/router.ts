@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import AgentsView from './views/AgentsView.vue'
 import AppearanceView from './views/AppearanceView.vue'
 import AutomationsView from './views/AutomationsView.vue'
+import ChannelsView from './views/ChannelsView.vue'
 import ChatView from './views/ChatView.vue'
 import ConnectView from './views/ConnectView.vue'
 import ContextView from './views/ContextView.vue'
@@ -38,6 +39,7 @@ export const router = createRouter({
         { path: 'skills', name: 'skills', component: SkillsView },
         { path: 'plugins', name: 'plugins', component: PluginsView },
         { path: 'chaves', name: 'secrets', component: SecretsView },
+        { path: 'canais', name: 'channels', component: ChannelsView },
         { path: 'compartilhar', name: 'share', component: ShareView },
         { path: 'conexao', name: 'settings-connect', component: ConnectView },
         { path: 'atualizacoes', name: 'updates', component: UpdatesView },

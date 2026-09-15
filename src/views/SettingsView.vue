@@ -31,6 +31,7 @@ const grupos: { titulo: string; itens: { nome: string; rota: string }[] }[] = [
     titulo: 'Conta',
     itens: [
       { nome: 'Chaves', rota: '/settings/chaves' },
+      { nome: 'Canais', rota: '/settings/canais' },
       { nome: 'Compartilhar modelos', rota: '/settings/compartilhar' },
       { nome: 'Conexao', rota: '/settings/conexao' },
       { nome: 'Atualizacoes', rota: '/settings/atualizacoes' },

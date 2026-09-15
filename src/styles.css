@@ -2828,3 +2828,34 @@ tfoot td {
   padding: 8px 0;
   border-top: 1px solid var(--border);
 }
+
+.canal-bloco h2 {
+  border: 0;
+  padding-top: 0;
+}
+
+.canal-tipos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
+}
+
+.canal-tipo {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+  cursor: pointer;
+}
+
+.canal-tipo input {
+  margin-right: 6px;
+}
+
+.canal-tipo.ativo {
+  border-color: var(--border-strong);
+}
+
+.canal-tipo.desabilitado {
+  opacity: 0.55;
+  cursor: default;
+}
